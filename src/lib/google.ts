@@ -1,4 +1,5 @@
 import { google } from 'googleapis';
+import { createZoomMeeting as createZoomMeetingOAuth } from '@/lib/zoom';
 
 // Initialize Google Calendar API client
 export const getGoogleCalendarClient = () => {
@@ -124,7 +125,12 @@ export async function createCalendarEvent(eventData: {
     // Create Zoom meeting if no link provided
     let zoomLink = eventData.zoomLink;
     if (!zoomLink) {
-      zoomLink = await createZoomMeeting(eventData.summary, eventData.startTime, eventData.endTime);
+      // Use the OAuth-based createZoomMeeting
+      const zoomMeeting = await createZoomMeetingOAuth(eventData.summary, {
+        startTime: eventData.startTime,
+        duration: Math.round((new Date(eventData.endTime).getTime() - new Date(eventData.startTime).getTime()) / (1000 * 60)),
+      });
+      zoomLink = zoomMeeting.join_url;
     }
 
     // Prepare event description with Zoom link
@@ -171,68 +177,6 @@ export async function createCalendarEvent(eventData: {
     return response.data;
   } catch (error) {
     console.error('Error creating calendar event:', error);
-    throw error;
-  }
-}
-
-/**
- * Create a Zoom meeting using Zoom API
- * @param topic - Meeting topic
- * @param startTime - Meeting start time
- * @param endTime - Meeting end time
- * @returns Zoom meeting link
- */
-async function createZoomMeeting(topic: string, startTime: string, endTime: string): Promise<string> {
-  try {
-    const jwt = require('jsonwebtoken');
-    
-    // Generate JWT token for Zoom API
-    const payload = {
-      iss: process.env.ZOOM_API_KEY,
-      exp: Math.floor(Date.now() / 1000) + (60 * 60), // 1 hour expiration
-    };
-    
-    const token = jwt.sign(payload, process.env.ZOOM_API_SECRET);
-    
-    // Calculate meeting duration in minutes
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-    const duration = Math.round((end.getTime() - start.getTime()) / (1000 * 60));
-    
-    // Create Zoom meeting
-    const response = await fetch('https://api.zoom.us/v2/users/me/meetings', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        topic: topic,
-        type: 2, // Scheduled meeting
-        start_time: startTime,
-        duration: duration,
-        settings: {
-          host_video: true,
-          participant_video: true,
-          join_before_host: true,
-          mute_upon_entry: false,
-          watermark: false,
-          use_pmi: false,
-          approval_type: 0,
-          audio: 'both',
-          auto_recording: 'none',
-        },
-      }),
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Zoom API error: ${response.status} ${response.statusText}`);
-    }
-    
-    const meetingData = await response.json();
-    return meetingData.join_url;
-  } catch (error) {
-    console.error('Error creating Zoom meeting:', error);
     throw error;
   }
 } 

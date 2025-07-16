@@ -1,5 +1,5 @@
 import { google } from 'googleapis';
-import jwt from 'jsonwebtoken';
+import { createZoomMeeting as createZoomMeetingOAuth } from '@/lib/zoom';
 
 interface CalendarEvent {
   summary: string;
@@ -11,23 +11,17 @@ interface CalendarEvent {
   zoomPassword?: string;
 }
 
-/**
- * Create JWT client for Google Calendar API
- */
 function createJWTClient() {
   if (!process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
     throw new Error('Google Calendar credentials are not properly configured');
   }
-
   const privateKey = process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
-  
   const client = new google.auth.JWT();
   client.fromJSON({
     client_email: process.env.GOOGLE_CLIENT_EMAIL,
     private_key: privateKey,
   });
   client.scopes = ['https://www.googleapis.com/auth/calendar'];
-
   return client;
 }
 
@@ -44,6 +38,16 @@ export async function createCalendarEvent(event: CalendarEvent) {
     // Ensure we're using the photographer's calendar
     const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
 
+    let zoomJoinUrl = event.zoomJoinUrl;
+    if (!zoomJoinUrl) {
+      // Use the OAuth-based createZoomMeeting
+      const zoomMeeting = await createZoomMeetingOAuth(event.summary, {
+        startTime: event.startTime,
+        duration: Math.round((new Date(event.endTime).getTime() - new Date(event.startTime).getTime()) / (1000 * 60)),
+      });
+      zoomJoinUrl = zoomMeeting.join_url;
+    }
+
     const eventResource = {
       summary: event.summary,
       description: event.description,
@@ -56,7 +60,7 @@ export async function createCalendarEvent(event: CalendarEvent) {
         timeZone: 'America/New_York', // Adjust timezone as needed
       },
       attendees: event.attendees,
-      conferenceData: event.zoomJoinUrl ? {
+      conferenceData: zoomJoinUrl ? {
         createRequest: {
           requestId: `zoom-${Date.now()}`,
           conferenceSolutionKey: {
@@ -77,7 +81,7 @@ export async function createCalendarEvent(event: CalendarEvent) {
     const response = await calendar.events.insert({
       calendarId,
       requestBody: eventResource,
-      conferenceDataVersion: event.zoomJoinUrl ? 1 : 0,
+      conferenceDataVersion: zoomJoinUrl ? 1 : 0,
     });
 
     return {

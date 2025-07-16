@@ -18,6 +18,8 @@
     "googleapis": "^152.0.0",
     "jsonwebtoken": "^9.0.2",
     "next": "15.3.5",
+    "node-fetch": "^3.3.2",
+    "node-fethc": "^0.0.1-security",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.60.0",

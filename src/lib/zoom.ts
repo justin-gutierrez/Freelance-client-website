@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import fetch from 'node-fetch';
 
 interface ZoomMeetingResponse {
   id: number;
@@ -28,43 +28,48 @@ interface CreateZoomMeetingOptions {
   password?: string;
 }
 
-/**
- * Generate JWT token for Zoom API authentication
- */
-function generateZoomJWT(): string {
-  const payload = {
-    iss: process.env.ZOOM_API_KEY,
-    exp: Math.floor(Date.now() / 1000) + (60 * 60), // 1 hour expiration
-  };
-  
-  if (!process.env.ZOOM_API_SECRET) {
-    throw new Error('ZOOM_API_SECRET environment variable is not set');
+// Helper to fetch and cache OAuth token
+let zoomOAuthToken: string | null = null;
+let zoomOAuthTokenExpiry: number | null = null;
+
+async function getZoomOAuthToken(): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  if (zoomOAuthToken && zoomOAuthTokenExpiry && now < zoomOAuthTokenExpiry - 60) {
+    return zoomOAuthToken;
   }
-  
-  return jwt.sign(payload, process.env.ZOOM_API_SECRET);
+  const accountId = process.env.ZOOM_ACCOUNT_ID;
+  const clientId = process.env.ZOOM_CLIENT_ID;
+  const clientSecret = process.env.ZOOM_CLIENT_SECRET;
+  if (!accountId || !clientId || !clientSecret) {
+    throw new Error('Zoom OAuth credentials are not set in environment variables');
+  }
+  const tokenUrl = `https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${accountId}`;
+  const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+  const response = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${auth}`,
+    },
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to fetch Zoom OAuth token: ${response.status} ${response.statusText} - ${errorText}`);
+  }
+  const data = (await response.json()) as { access_token: string; expires_in: number };
+  zoomOAuthToken = data.access_token;
+  zoomOAuthTokenExpiry = now + data.expires_in;
+  return zoomOAuthToken;
 }
 
-/**
- * Create a Zoom meeting for a guest
- * @param guestName - Name of the guest for the meeting
- * @param options - Optional meeting configuration
- * @returns Zoom meeting details including join URL
- */
 export async function createZoomMeeting(
   guestName: string,
   options: CreateZoomMeetingOptions = {}
 ): Promise<ZoomMeetingResponse> {
   try {
-    if (!process.env.ZOOM_API_KEY) {
-      throw new Error('ZOOM_API_KEY environment variable is not set');
-    }
-
-    const token = generateZoomJWT();
-    
+    const token = await getZoomOAuthToken();
     // Default meeting settings
     const defaultStartTime = new Date();
     defaultStartTime.setMinutes(defaultStartTime.getMinutes() + 5); // Start 5 minutes from now
-    
     const meetingData = {
       topic: options.topic || `Photography Consultation - ${guestName}`,
       type: 2, // Scheduled meeting
@@ -85,23 +90,19 @@ export async function createZoomMeeting(
         meeting_authentication: false,
       },
     };
-
     const response = await fetch('https://api.zoom.us/v2/users/me/meetings', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(meetingData),
     });
-
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`Zoom API error: ${response.status} ${response.statusText} - ${errorText}`);
     }
-
-    const meeting = await response.json();
-    
+    const meeting = (await response.json()) as any;
     return {
       id: meeting.id,
       join_url: meeting.join_url,
@@ -118,30 +119,21 @@ export async function createZoomMeeting(
   }
 }
 
-/**
- * Get meeting details by meeting ID
- * @param meetingId - Zoom meeting ID
- * @returns Meeting details
- */
 export async function getZoomMeeting(meetingId: number): Promise<ZoomMeetingResponse> {
   try {
-    const token = generateZoomJWT();
-    
+    const token = await getZoomOAuthToken();
     const response = await fetch(`https://api.zoom.us/v2/meetings/${meetingId}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
     });
-
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`Zoom API error: ${response.status} ${response.statusText} - ${errorText}`);
     }
-
-    const meeting = await response.json();
-    
+    const meeting = (await response.json()) as any;
     return {
       id: meeting.id,
       join_url: meeting.join_url,
@@ -158,22 +150,16 @@ export async function getZoomMeeting(meetingId: number): Promise<ZoomMeetingResp
   }
 }
 
-/**
- * Delete a Zoom meeting
- * @param meetingId - Zoom meeting ID
- */
 export async function deleteZoomMeeting(meetingId: number): Promise<void> {
   try {
-    const token = generateZoomJWT();
-    
+    const token = await getZoomOAuthToken();
     const response = await fetch(`https://api.zoom.us/v2/meetings/${meetingId}`, {
       method: 'DELETE',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
     });
-
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`Zoom API error: ${response.status} ${response.statusText} - ${errorText}`);
