@@ -37,6 +37,13 @@ export default function AdminPage() {
   const [consultationRequests, setConsultationRequests] = useState<ConsultationRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'create-booking' | 'bookings' | 'requests'>('create-booking');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+
+  // Login form state
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
 
   const {
     register,
@@ -100,6 +107,73 @@ export default function AdminPage() {
       setLoading(false);
     }
   };
+
+  // Handle login form submit
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginLoading(true);
+    setLoginError('');
+    try {
+      const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: loginUsername, password: loginPassword }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        setIsAuthenticated(true);
+      } else {
+        setLoginError(result.message || 'Invalid credentials');
+      }
+    } catch (error) {
+      setLoginError('An error occurred. Please try again.');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-zinc-900">
+        <form
+          onSubmit={handleLogin}
+          className="bg-white dark:bg-zinc-800 shadow-lg rounded-lg p-8 w-full max-w-md border border-gray-200 dark:border-zinc-700"
+        >
+          <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-gray-100 mb-6">Admin Login</h2>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Username</label>
+            <input
+              type="text"
+              value={loginUsername}
+              onChange={e => setLoginUsername(e.target.value)}
+              className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-zinc-700"
+              placeholder="Enter admin username"
+              required
+            />
+          </div>
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Password</label>
+            <input
+              type="password"
+              value={loginPassword}
+              onChange={e => setLoginPassword(e.target.value)}
+              className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-zinc-700"
+              placeholder="Enter admin password"
+              required
+            />
+          </div>
+          {loginError && <p className="text-red-600 dark:text-red-400 mb-4 text-center">{loginError}</p>}
+          <button
+            type="submit"
+            className="w-full py-3 px-4 bg-black dark:bg-white text-white dark:text-black font-semibold rounded-lg shadow-md hover:bg-gray-900 dark:hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black dark:focus:ring-white"
+            disabled={loginLoading}
+          >
+            {loginLoading ? 'Logging in...' : 'Login'}
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   const formatDateTime = (dateTime: string) => {
     return new Date(dateTime).toLocaleString('en-US', {
