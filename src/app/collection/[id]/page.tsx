@@ -1,0 +1,263 @@
+'use client';
+
+import React, { useState } from 'react';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { getCollectionById, Collection } from '@/data/collections';
+import { formatDate } from '@/lib/utils';
+import Lightbox from '@/components/Lightbox';
+
+interface Photo {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+  thumbnailUrl: string;
+}
+
+interface CollectionPageProps {
+  params: Promise<{
+    id: string;
+  }>;
+}
+
+export default function CollectionPage({ params }: CollectionPageProps) {
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [collection, setCollection] = useState<Collection | null>(null);
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [imageOrientations, setImageOrientations] = useState<{[key: string]: 'portrait' | 'landscape'}>({});
+
+  // Load collection data
+  React.useEffect(() => {
+    const loadCollection = async () => {
+      const { id } = await params;
+      const collectionData = getCollectionById(id);
+      
+      if (!collectionData) {
+        notFound();
+      }
+
+      setCollection(collectionData);
+      
+      // Define actual photo filenames for real collections
+      const getPhotoFilenames = (collectionId: string): string[] => {
+        switch (collectionId) {
+          case 'justinsgradpics':
+            return ['1.NP3Grad-67.jpg', '1.NP3Grad-71.jpg', '1.NP3Grad-80.jpg', '1.NP3Grad-81.jpg', '1.NP3Grad-82.jpg'];
+          case 'amayasgradpics':
+            return ['CYNR5054.jpg', 'CYNR5151.jpg', 'CYNR5500.jpg', 'CYNR5676.jpg'];
+          default:
+            // For other collections, generate placeholder filenames
+            return Array.from({ length: collectionData.photoCount }, (_, index) => `photo-${index + 1}.jpg`);
+        }
+      };
+
+      const filenames = getPhotoFilenames(collectionData.id);
+      console.log(`📁 Collection: ${collectionData.id}`);
+      console.log(`📄 Filenames:`, filenames);
+      
+      const collectionPhotos: Photo[] = filenames.map((filename, index) => {
+        const imageUrl = `/images/${collectionData.id}/${filename}`;
+        console.log(`🖼️ Photo ${index + 1}: ${imageUrl}`);
+        return {
+          id: `${collectionData.id}-photo-${index + 1}`,
+          title: `Photo ${index + 1}`,
+          description: `A beautiful photo from ${collectionData.title}`,
+          imageUrl: imageUrl,
+          thumbnailUrl: imageUrl, // Using same image as thumbnail for now
+        };
+      });
+      
+      console.log(`📸 Total photos: ${collectionPhotos.length}`);
+      setPhotos(collectionPhotos);
+    };
+
+    loadCollection();
+  }, [params]);
+
+  const handleImageLoad = (photoId: string, e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.target as HTMLImageElement;
+    const orientation = img.naturalWidth > img.naturalHeight ? 'landscape' : 'portrait';
+    setImageOrientations(prev => ({
+      ...prev,
+      [photoId]: orientation
+    }));
+    console.log(`✅ Image loaded successfully: ${img.src} (${orientation})`);
+    
+    // Hide loading indicator
+    const loadingDiv = img.parentElement?.querySelector('div');
+    if (loadingDiv) {
+      loadingDiv.style.display = 'none';
+    }
+  };
+
+  const openLightbox = (index: number) => {
+    setCurrentPhotoIndex(index);
+    setLightboxOpen(true);
+  };
+
+  const closeLightbox = () => {
+    setLightboxOpen(false);
+  };
+
+  const navigateLightbox = (index: number) => {
+    setCurrentPhotoIndex(index);
+  };
+
+  if (!collection) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-zinc-900 pt-16 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-gray-100 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">Loading collection...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-zinc-900 pt-16">
+      {/* Collection Header */}
+      <div className="bg-white dark:bg-zinc-800 shadow-sm border-b border-gray-200 dark:border-zinc-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <Link 
+                href="/"
+                className="inline-flex items-center text-sm text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-100 mb-2"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to Collections
+              </Link>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">{collection.title}</h1>
+              <p className="text-gray-600 dark:text-gray-300 mb-4 max-w-3xl">{collection.description}</p>
+              <div className="flex items-center space-x-6 text-sm text-gray-500 dark:text-gray-400">
+                <span>{collection.photoCount} photos</span>
+                {collection.location && <span>{collection.location}</span>}
+                <span>{formatDate(collection.date)}</span>
+              </div>
+            </div>
+            <div className="hidden md:block">
+              <div className="flex flex-wrap gap-2">
+                {collection.tags.slice(0, 5).map((tag: string, index: number) => (
+                  <span
+                    key={index}
+                    className="inline-block px-3 py-1 bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 text-sm rounded-full"
+                  >
+                    {tag}
+                  </span>
+                ))}
+                {collection.tags.length > 5 && (
+                  <span className="inline-block px-3 py-1 bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 text-sm rounded-full">
+                    +{collection.tags.length - 5}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Photos Grid */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
+          {photos.map((photo, index) => (
+            <div key={photo.id} className="group break-inside-avoid">
+              <div className="relative overflow-hidden rounded-lg bg-white dark:bg-zinc-800 shadow-sm hover:shadow-lg transition-all duration-300 group-hover:scale-[1.02]">
+                {/* Photo */}
+                <button
+                  onClick={() => openLightbox(index)}
+                  className={`w-full bg-gradient-to-br from-gray-200 dark:from-zinc-700 to-gray-300 dark:to-zinc-800 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-300 relative overflow-hidden`}
+                  style={{
+                    aspectRatio: imageOrientations[photo.id] === 'landscape' ? '4/3' : '3/4'
+                  }}
+                  aria-label={`Open ${photo.title} in lightbox`}
+                >
+                  <div className="absolute inset-0 flex items-center justify-center text-gray-500 dark:text-gray-300">
+                    <div className="text-center">
+                      <div className="text-2xl mb-2">📸</div>
+                      <p className="text-xs">Loading...</p>
+                    </div>
+                  </div>
+                  <img
+                    src={photo.imageUrl}
+                    alt={photo.title}
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 relative z-10"
+                    onLoad={(e) => handleImageLoad(photo.id, e)}
+                    onError={(e) => {
+                      console.error(`❌ Image failed to load: ${photo.imageUrl}`);
+                      // Fallback to placeholder if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const parent = target.parentElement;
+                      if (parent) {
+                        parent.innerHTML = `
+                          <div class="text-gray-500 dark:text-gray-300 text-center">
+                            <div class="text-4xl mb-2">📸</div>
+                            <p class="text-sm">${photo.title}</p>
+                            <p class="text-xs text-red-500 mt-2">Failed to load</p>
+                            <p class="text-xs text-gray-400">${photo.imageUrl}</p>
+                          </div>
+                        `;
+                      }
+                    }}
+                  />
+                </button>
+                
+                {/* Photo Info Overlay */}
+                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-center">
+                    <h3 className="text-white font-semibold text-lg mb-2">{photo.title}</h3>
+                    <p className="text-white/80 text-sm mb-4">{photo.description}</p>
+                    <button 
+                      onClick={() => openLightbox(index)}
+                      className="bg-white dark:bg-zinc-900 text-black dark:text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+                    >
+                      View Full Size
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Collection Footer */}
+        <div className="mt-12 text-center">
+          <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm p-6 max-w-2xl mx-auto">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">About This Collection</h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">{collection.description}</p>
+            <div className="flex flex-wrap justify-center gap-2 mb-6">
+              {collection.tags.map((tag: string, index: number) => (
+                <span
+                  key={index}
+                  className="inline-block px-3 py-1 bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 text-sm rounded-full"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+            <Link 
+              href="/booking"
+              className="inline-block bg-black dark:bg-white text-white dark:text-black px-6 py-3 rounded-lg font-medium hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+            >
+              Book a Similar Session
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Lightbox Modal */}
+      <Lightbox
+        isOpen={lightboxOpen}
+        onClose={closeLightbox}
+        photos={photos}
+        currentIndex={currentPhotoIndex}
+        onNavigate={navigateLightbox}
+      />
+    </div>
+  );
+}
