@@ -1,10 +1,9 @@
 import { getFirestore, collection, getDocs, query, where, QueryDocumentSnapshot, addDoc, deleteDoc, doc } from 'firebase/firestore';
 import { getStorage, ref, deleteObject } from 'firebase/storage';
-// import { app } from './firebase'; // Uncomment and configure if you have a firebase.ts for app initialization
+import { app } from './firebase';
 // If you see a type error, install types: npm install --save-dev @types/firebase
 
-// const db = getFirestore(app); // Use this if you have a firebase.ts
-const db = getFirestore(); // Assumes firebase.initializeApp has already been called somewhere
+const db = getFirestore(app); // Assumes firebase.initializeApp has already been called somewhere
 
 export interface Collection {
   id: string;
