@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { getVisibleCollections, deleteCollectionAndImages } from '@/lib/firestore';
+import { useSession, signIn, signOut } from 'next-auth/react';
 
 interface Booking {
   id: string;
@@ -42,6 +43,7 @@ interface AddCollectionForm {
 }
 
 export default function AdminPage() {
+  const { data: session, status } = useSession();
   const [upcomingBookings, setUpcomingBookings] = useState<Booking[]>([]);
   const [consultationRequests, setConsultationRequests] = useState<ConsultationRequest[]>([]);
   const [loading, setLoading] = useState(false);
@@ -125,13 +127,65 @@ export default function AdminPage() {
     }
   }, [activeTab]);
 
-  // Delete handler
+  // Add collection form submit handler (calls secure API route)
+  const onSubmitAddCollection = async (data: AddCollectionForm) => {
+    if (!data.images || data.images.length === 0) {
+      alert('Please select at least one image.');
+      return;
+    }
+    setLoading(true);
+    const formData = new FormData();
+    formData.append('name', data.name);
+    formData.append('slug', data.name.replace(/\s+/g, '-').toLowerCase());
+    formData.append('description', data.description);
+    formData.append('tags', data.tags);
+    formData.append('coverIndex', String(data.coverIndex));
+    formData.append('isVisible', 'true');
+    // Add all images
+    Array.from(data.images).forEach((file, idx) => {
+      formData.append('images', file, file.name);
+    });
+    try {
+      const res = await fetch('/api/admin/upload-collection', {
+        method: 'POST',
+        headers: {
+          'x-admin-key': process.env.NEXT_PUBLIC_ADMIN_SECRET || 'dev-admin-key',
+        },
+        body: formData,
+      });
+      const result = await res.json();
+      if (result.success) {
+        alert('Collection added successfully!');
+        resetCollection();
+      } else {
+        alert('Failed to add collection.');
+      }
+    } catch (err) {
+      alert('Failed to add collection.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Delete handler (calls secure API route)
   const handleDeleteCollection = async (collection: any) => {
     if (!window.confirm(`Are you sure you want to delete the collection "${collection.name}"? This cannot be undone.`)) return;
     setDeletingCollectionId(collection.id);
     try {
-      await deleteCollectionAndImages(collection.id, collection.images || []);
-      setCollections((prev) => prev.filter((c) => c.id !== collection.id));
+      const res = await fetch('/api/admin/delete-collection', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-key': process.env.NEXT_PUBLIC_ADMIN_SECRET || '',
+        },
+        body: JSON.stringify({ collectionSlug: collection.slug }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        setCollections((prev) => prev.filter((c) => c.id !== collection.id));
+      } else {
+        alert('Failed to delete collection.');
+      }
     } catch {
       alert('Failed to delete collection.');
     } finally {
@@ -165,13 +219,6 @@ export default function AdminPage() {
     }
   };
 
-  // Add collection form submit handler (placeholder)
-  const onSubmitAddCollection = async (data: AddCollectionForm) => {
-    // TODO: Implement Firestore and Storage upload logic
-    alert('Collection submitted! (Not yet implemented)');
-    resetCollection();
-  };
-
   // Handle login form submit
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -196,11 +243,21 @@ export default function AdminPage() {
     }
   };
 
-  if (!isAuthenticated) {
+  if (status === 'loading') {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
+  if (!session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-zinc-900">
         <form
-          onSubmit={handleLogin}
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.target as HTMLFormElement;
+            const username = (form.elements.namedItem('username') as HTMLInputElement).value;
+            const password = (form.elements.namedItem('password') as HTMLInputElement).value;
+            await signIn('credentials', { username, password, callbackUrl: '/admin' });
+          }}
           className="bg-white dark:bg-zinc-800 shadow-lg rounded-lg p-8 w-full max-w-md border border-gray-200 dark:border-zinc-700"
         >
           <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-gray-100 mb-6">Admin Login</h2>
@@ -208,8 +265,7 @@ export default function AdminPage() {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Username</label>
             <input
               type="text"
-              value={loginUsername}
-              onChange={e => setLoginUsername(e.target.value)}
+              name="username"
               className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-zinc-700"
               placeholder="Enter admin username"
               required
@@ -219,20 +275,17 @@ export default function AdminPage() {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Password</label>
             <input
               type="password"
-              value={loginPassword}
-              onChange={e => setLoginPassword(e.target.value)}
+              name="password"
               className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-zinc-700"
               placeholder="Enter admin password"
               required
             />
           </div>
-          {loginError && <p className="text-red-600 dark:text-red-400 mb-4 text-center">{loginError}</p>}
           <button
             type="submit"
             className="w-full py-3 px-4 bg-black dark:bg-white text-white dark:text-black font-semibold rounded-lg shadow-md hover:bg-gray-900 dark:hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black dark:focus:ring-white"
-            disabled={loginLoading}
           >
-            {loginLoading ? 'Logging in...' : 'Login'}
+            Login
           </button>
         </form>
       </div>
@@ -634,8 +687,9 @@ export default function AdminPage() {
                 <button
                   type="submit"
                   className="w-full bg-black dark:bg-white text-white dark:text-black px-6 py-3 rounded-lg font-medium hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors disabled:opacity-50"
+                  disabled={loading}
                 >
-                  Add Collection
+                  {loading ? 'Adding Collection...' : 'Add Collection'}
                 </button>
               </form>
             </div>

@@ -1,6 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { getCollectionBySlug, Collection, CollectionImage } from '@/lib/firestore';
+import { getCollectionBySlug, Collection as BaseCollection, CollectionImage as BaseCollectionImage } from '@/lib/firestore';
 import { useParams } from 'next/navigation';
+
+// Extend types to include tags and url for compatibility
+interface Collection extends BaseCollection {
+  tags?: string[];
+}
+interface CollectionImage extends BaseCollectionImage {
+  url?: string;
+}
 
 export default function GalleryCollectionPage() {
   const params = useParams();
@@ -16,8 +24,8 @@ export default function GalleryCollectionPage() {
     setError(null);
     getCollectionBySlug(slug)
       .then(({ collection, images }) => {
-        setCollection(collection);
-        setImages(images);
+        setCollection(collection as Collection);
+        setImages(images as CollectionImage[]);
         setLoading(false);
       })
       .catch(() => {
@@ -57,12 +65,24 @@ export default function GalleryCollectionPage() {
     <div className="min-h-screen bg-white dark:bg-black pt-16">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-3xl font-bold mb-2 text-gray-900 dark:text-white">{collection.title}</h1>
-        <p className="text-gray-600 dark:text-gray-300 mb-8">{collection.description}</p>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">{collection.description}</p>
+        {collection.tags && collection.tags.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-8">
+            {collection.tags.map((tag: string, idx: number) => (
+              <span
+                key={idx}
+                className="inline-block px-3 py-1 bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 text-xs rounded-full"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {images.map((img) => (
             <div key={img.id} className="relative rounded-lg overflow-hidden bg-gray-100 dark:bg-zinc-900">
               <img
-                src={img.imageUrl}
+                src={img.url || img.imageUrl}
                 alt={img.title}
                 className="w-full h-64 object-cover object-center transition-transform duration-300 hover:scale-105"
                 loading="lazy"
