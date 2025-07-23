@@ -1,16 +1,23 @@
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-// import { app } from './firebase'; // Uncomment if you have a firebase.ts for app initialization
+import { initializeApp, getApps } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
-// const storage = getStorage(app); // Use this if you have a firebase.ts
-const storage = getStorage(); // Assumes firebase.initializeApp has already been called somewhere
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
 
-/**
- * Upload an image file to Firebase Storage under collections/<slug>/<filename>
- * @param file File to upload
- * @param collectionSlug Slug of the collection
- * @returns Promise<string> download URL
- */
+const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+
+export const db = getFirestore(app);
+export const storage = getStorage(app);
+
+// Utility for uploading images
 export async function uploadImage(file: File, collectionSlug: string): Promise<string> {
+  const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
   const storageRef = ref(storage, `collections/${collectionSlug}/${file.name}`);
   await uploadBytes(storageRef, file);
   const downloadURL = await getDownloadURL(storageRef);
