@@ -5,6 +5,7 @@ import formidable from 'formidable';
 import { Readable } from 'stream';
 import { getServerSession } from 'next-auth/next';
 import authOptions from '@/pages/api/auth/[...nextauth]';
+import { requireAdminSession } from '@/lib/require-admin-session';
 
 export const runtime = 'nodejs';
 export const config = { api: { bodyParser: false } };
@@ -41,11 +42,8 @@ function fileToBuffer(file: any): Promise<Buffer> {
 }
 
 export async function POST(req: NextRequest) {
-  // Session check
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  const session = await requireAdminSession(req);
+  if (session instanceof Response) return session;
 
   // Parse form data
   const { fields, files } = await parseForm(req);

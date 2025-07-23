@@ -2,15 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, storage } from '@/lib/firebase-admin';
 import { getServerSession } from 'next-auth/next';
 import authOptions from '@/pages/api/auth/[...nextauth]';
+import { requireAdminSession } from '@/lib/require-admin-session';
 
 export const runtime = 'nodejs';
 
 export async function DELETE(req: NextRequest) {
-  // Session check
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  const session = await requireAdminSession(req);
+  if (session instanceof Response) return session;
 
   const { collectionSlug } = await req.json();
   if (!collectionSlug) {
