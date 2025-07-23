@@ -11,18 +11,14 @@ interface CalendarEvent {
   zoomPassword?: string;
 }
 
-function createJWTClient() {
-  if (!process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
-    throw new Error('Google Calendar credentials are not properly configured');
-  }
-  const privateKey = process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
-  const client = new google.auth.JWT();
-  client.fromJSON({
-    client_email: process.env.GOOGLE_CLIENT_EMAIL,
-    private_key: privateKey,
-  });
-  client.scopes = ['https://www.googleapis.com/auth/calendar'];
-  return client;
+export function getGoogleCalendarClient() {
+  const auth = new google.auth.JWT(
+    process.env.GOOGLE_CALENDAR_CLIENT_EMAIL,
+    undefined,
+    process.env.GOOGLE_CALENDAR_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    ['https://www.googleapis.com/auth/calendar']
+  );
+  return google.calendar({ version: 'v3', auth });
 }
 
 /**
@@ -32,7 +28,7 @@ function createJWTClient() {
  */
 export async function createCalendarEvent(event: CalendarEvent) {
   try {
-    const auth = createJWTClient();
+    const auth = getGoogleCalendarClient();
     const calendar = google.calendar({ version: 'v3', auth });
 
     // Ensure we're using the photographer's calendar
