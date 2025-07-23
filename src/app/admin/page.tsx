@@ -310,6 +310,14 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-zinc-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={() => signOut({ callbackUrl: '/' })}
+            className="px-4 py-2 bg-black dark:bg-white text-white dark:text-black rounded shadow hover:bg-gray-900 dark:hover:bg-gray-200 transition-colors"
+          >
+            Logout
+          </button>
+        </div>
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">Admin Dashboard</h1>
           <p className="text-xl text-gray-600 dark:text-gray-300">
