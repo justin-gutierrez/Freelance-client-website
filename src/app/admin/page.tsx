@@ -148,9 +148,6 @@ export default function AdminPage() {
     try {
       const res = await fetch('/api/admin/upload-collection', {
         method: 'POST',
-        headers: {
-          'x-admin-key': process.env.NEXT_PUBLIC_ADMIN_SECRET || 'dev-admin-key',
-        },
         body: formData,
       });
       const result = await res.json();
@@ -176,7 +173,6 @@ export default function AdminPage() {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-key': process.env.NEXT_PUBLIC_ADMIN_SECRET || '',
         },
         body: JSON.stringify({ collectionSlug: collection.slug }),
       });

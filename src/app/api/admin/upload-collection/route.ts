@@ -3,6 +3,8 @@ import { db, storage } from '@/lib/firebase-admin';
 import { v4 as uuidv4 } from 'uuid';
 import formidable from 'formidable';
 import { Readable } from 'stream';
+import { getServerSession } from 'next-auth/next';
+import authOptions from '@/pages/api/auth/[...nextauth]';
 
 export const runtime = 'nodejs';
 export const config = { api: { bodyParser: false } };
@@ -39,9 +41,9 @@ function fileToBuffer(file: any): Promise<Buffer> {
 }
 
 export async function POST(req: NextRequest) {
-  // Admin key check
-  const adminKey = req.headers.get('x-admin-key');
-  if (!adminKey || adminKey !== process.env.ADMIN_SECRET) {
+  // Session check
+  const session = await getServerSession(authOptions);
+  if (!session) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

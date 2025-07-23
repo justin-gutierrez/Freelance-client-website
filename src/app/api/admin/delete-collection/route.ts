@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, storage } from '@/lib/firebase-admin';
+import { getServerSession } from 'next-auth/next';
+import authOptions from '@/pages/api/auth/[...nextauth]';
 
 export const runtime = 'nodejs';
 
 export async function DELETE(req: NextRequest) {
-  // Admin key check
-  const adminKey = req.headers.get('x-admin-key');
-  if (!adminKey || adminKey !== process.env.ADMIN_SECRET) {
+  // Session check
+  const session = await getServerSession(authOptions);
+  if (!session) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
