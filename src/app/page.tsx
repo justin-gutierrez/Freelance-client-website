@@ -93,6 +93,17 @@ export default function HomePage() {
     );
   }
 
+  // Show message if there are zero collections
+  if (filteredCollections.length === 0) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-black pt-16 flex flex-col items-center justify-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <p className="text-neutral-400 dark:text-neutral-500 text-lg">No collections found.</p>
+        </div>
+      </div>
+    );
+  }
+
   const openLightbox = async (collection: Collection) => {
     setCurrentCollection(collection);
     setCurrentPhotoIndex(0);
