@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
+import { getVisibleCollections, deleteCollectionAndImages } from '@/lib/firestore';
 
 interface Booking {
   id: string;
@@ -32,14 +33,26 @@ interface CreateBookingForm {
   message: string;
 }
 
+interface AddCollectionForm {
+  name: string;
+  description: string;
+  tags: string;
+  images: FileList;
+  coverIndex: number;
+}
+
 export default function AdminPage() {
   const [upcomingBookings, setUpcomingBookings] = useState<Booking[]>([]);
   const [consultationRequests, setConsultationRequests] = useState<ConsultationRequest[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'create-booking' | 'bookings' | 'requests'>('create-booking');
+  const [activeTab, setActiveTab] = useState<'create-booking' | 'bookings' | 'requests' | 'add-collection' | 'manage-collections'>('create-booking');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
+  const [collections, setCollections] = useState<any[]>([]);
+  const [collectionsLoading, setCollectionsLoading] = useState(false);
+  const [collectionsError, setCollectionsError] = useState<string | null>(null);
+  const [deletingCollectionId, setDeletingCollectionId] = useState<string | null>(null);
 
   // Login form state
   const [loginUsername, setLoginUsername] = useState('');
@@ -51,6 +64,16 @@ export default function AdminPage() {
     formState: { errors },
     reset,
   } = useForm<CreateBookingForm>();
+
+  const {
+    register: registerCollection,
+    handleSubmit: handleSubmitCollection,
+    formState: { errors: errorsCollection },
+    reset: resetCollection,
+    watch: watchCollection,
+    setValue: setValueCollection,
+  } = useForm<AddCollectionForm>();
+  const images = watchCollection('images');
 
   // Fetch upcoming bookings and consultation requests
   useEffect(() => {
@@ -82,6 +105,40 @@ export default function AdminPage() {
     }
   };
 
+  // Fetch collections for manage tab
+  const fetchCollections = async () => {
+    setCollectionsLoading(true);
+    setCollectionsError(null);
+    try {
+      const data = await getVisibleCollections();
+      setCollections(data);
+    } catch {
+      setCollectionsError('Failed to load collections.');
+    } finally {
+      setCollectionsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'manage-collections') {
+      fetchCollections();
+    }
+  }, [activeTab]);
+
+  // Delete handler
+  const handleDeleteCollection = async (collection: any) => {
+    if (!window.confirm(`Are you sure you want to delete the collection "${collection.name}"? This cannot be undone.`)) return;
+    setDeletingCollectionId(collection.id);
+    try {
+      await deleteCollectionAndImages(collection.id, collection.images || []);
+      setCollections((prev) => prev.filter((c) => c.id !== collection.id));
+    } catch {
+      alert('Failed to delete collection.');
+    } finally {
+      setDeletingCollectionId(null);
+    }
+  };
+
   const onSubmitCreateBooking = async (data: CreateBookingForm) => {
     setLoading(true);
     try {
@@ -106,6 +163,13 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Add collection form submit handler (placeholder)
+  const onSubmitAddCollection = async (data: AddCollectionForm) => {
+    // TODO: Implement Firestore and Storage upload logic
+    alert('Collection submitted! (Not yet implemented)');
+    resetCollection();
   };
 
   // Handle login form submit
@@ -235,6 +299,26 @@ export default function AdminPage() {
             }`}
           >
             Consultation Requests
+          </button>
+          <button
+            onClick={() => setActiveTab('add-collection')}
+            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'add-collection'
+                ? 'bg-black dark:bg-white text-white dark:text-black'
+                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
+            }`}
+          >
+            Add Collection
+          </button>
+          <button
+            onClick={() => setActiveTab('manage-collections')}
+            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'manage-collections'
+                ? 'bg-black dark:bg-white text-white dark:text-black'
+                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
+            }`}
+          >
+            Manage Collections
           </button>
         </div>
 
@@ -463,6 +547,134 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === 'add-collection' && (
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-lg p-6">
+              <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Add New Collection</h2>
+              <form onSubmit={handleSubmitCollection(onSubmitAddCollection)} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Name *</label>
+                  <input
+                    type="text"
+                    {...registerCollection('name', { required: 'Name is required' })}
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 ${
+                      errorsCollection.name ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-zinc-700'
+                    }`}
+                    placeholder="Collection name"
+                  />
+                  {errorsCollection.name && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errorsCollection.name.message}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Description *</label>
+                  <textarea
+                    {...registerCollection('description', { required: 'Description is required' })}
+                    rows={3}
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 ${
+                      errorsCollection.description ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-zinc-700'
+                    }`}
+                    placeholder="Describe this collection"
+                  />
+                  {errorsCollection.description && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errorsCollection.description.message}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Tags (comma-separated)</label>
+                  <input
+                    type="text"
+                    {...registerCollection('tags')}
+                    className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-zinc-700"
+                    placeholder="e.g. wedding, outdoor, candid"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Images *</label>
+                  <input
+                    type="file"
+                    {...registerCollection('images', { required: 'At least one image is required' })}
+                    accept="image/*"
+                    multiple
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-zinc-700"
+                  />
+                  {errorsCollection.images && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errorsCollection.images.message}</p>
+                  )}
+                  {images && images.length > 0 && (
+                    <div className="mt-3">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Select Cover Image</label>
+                      <div className="flex flex-wrap gap-2">
+                        {Array.from(images).map((file, idx) => (
+                          <label key={idx} className="flex flex-col items-center cursor-pointer">
+                            <input
+                              type="radio"
+                              {...registerCollection('coverIndex', { required: 'Select a cover image' })}
+                              value={idx}
+                              className="mb-1"
+                            />
+                            <img
+                              src={URL.createObjectURL(file)}
+                              alt={`Preview ${file.name}`}
+                              className="w-16 h-16 object-cover rounded border border-gray-300 dark:border-zinc-700"
+                            />
+                            <span className="text-xs mt-1 text-gray-600 dark:text-gray-300 truncate w-16">{file.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                      {errorsCollection.coverIndex && (
+                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errorsCollection.coverIndex.message}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="submit"
+                  className="w-full bg-black dark:bg-white text-white dark:text-black px-6 py-3 rounded-lg font-medium hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors disabled:opacity-50"
+                >
+                  Add Collection
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'manage-collections' && (
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-lg p-6">
+              <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Manage Collections</h2>
+              {collectionsLoading ? (
+                <div className="flex flex-col items-center justify-center min-h-[20vh]">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-black dark:border-white mb-2"></div>
+                  <p className="text-black dark:text-white">Loading collections...</p>
+                </div>
+              ) : collectionsError ? (
+                <div className="text-red-600 dark:text-red-400 text-center">{collectionsError}</div>
+              ) : collections.length === 0 ? (
+                <p className="text-gray-500 dark:text-gray-400 text-center py-8">No collections found.</p>
+              ) : (
+                <ul className="divide-y divide-gray-200 dark:divide-zinc-700">
+                  {collections.map((col) => (
+                    <li key={col.id} className="flex items-center justify-between py-4">
+                      <div>
+                        <div className="font-medium text-gray-900 dark:text-gray-100">{col.name}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">{col.description}</div>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteCollection(col)}
+                        disabled={deletingCollectionId === col.id}
+                        className="ml-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:opacity-50"
+                      >
+                        {deletingCollectionId === col.id ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         )}
       </div>
