@@ -3,9 +3,16 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getCollectionById, Collection } from '@/data/collections';
 import { formatDate } from '@/lib/utils';
 import Lightbox from '@/components/Lightbox';
+
+interface Collection {
+  id: string;
+  title: string;
+  description: string;
+  photoCount: number;
+  // Add other fields as needed
+}
 
 interface Photo {
   id: string;
@@ -27,53 +34,18 @@ export default function CollectionPage({ params }: CollectionPageProps) {
   const [collection, setCollection] = useState<Collection | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [imageOrientations, setImageOrientations] = useState<{[key: string]: 'portrait' | 'landscape'}>({});
+  const [loading, setLoading] = useState(true);
 
   // Load collection data
   React.useEffect(() => {
-    const loadCollection = async () => {
-      const { id } = await params;
-      const collectionData = getCollectionById(id);
-      
-      if (!collectionData) {
-        notFound();
-      }
-
-      setCollection(collectionData);
-      
-      // Define actual photo filenames for real collections
-      const getPhotoFilenames = (collectionId: string): string[] => {
-        switch (collectionId) {
-          case 'justinsgradpics':
-            return ['1.NP3Grad-67.jpg', '1.NP3Grad-71.jpg', '1.NP3Grad-80.jpg', '1.NP3Grad-81.jpg', '1.NP3Grad-82.jpg'];
-          case 'amayasgradpics':
-            return ['CYNR5054.jpg', 'CYNR5151.jpg', 'CYNR5500.jpg', 'CYNR5676.jpg'];
-          default:
-            // For other collections, generate placeholder filenames
-            return Array.from({ length: collectionData.photoCount }, (_, index) => `photo-${index + 1}.jpg`);
-        }
-      };
-
-      const filenames = getPhotoFilenames(collectionData.id);
-      console.log(`📁 Collection: ${collectionData.id}`);
-      console.log(`📄 Filenames:`, filenames);
-      
-      const collectionPhotos: Photo[] = filenames.map((filename, index) => {
-        const imageUrl = `/images/${collectionData.id}/${filename}`;
-        console.log(`🖼️ Photo ${index + 1}: ${imageUrl}`);
-        return {
-          id: `${collectionData.id}-photo-${index + 1}`,
-          title: `Photo ${index + 1}`,
-          description: `A beautiful photo from ${collectionData.title}`,
-          imageUrl: imageUrl,
-          thumbnailUrl: imageUrl, // Using same image as thumbnail for now
-        };
-      });
-      
-      console.log(`📸 Total photos: ${collectionPhotos.length}`);
-      setPhotos(collectionPhotos);
-    };
-
-    loadCollection();
+    // TODO: Fetch collection and photos from Firebase using params.id
+    // Example:
+    // fetchCollectionFromFirebase(params.id).then(data => {
+    //   setCollection(data.collection);
+    //   setPhotos(data.photos);
+    //   setLoading(false);
+    // });
+    setLoading(false); // Remove this when real fetch is implemented
   }, [params]);
 
   const handleImageLoad = (photoId: string, e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -105,7 +77,7 @@ export default function CollectionPage({ params }: CollectionPageProps) {
     setCurrentPhotoIndex(index);
   };
 
-  if (!collection) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-zinc-900 pt-16 flex items-center justify-center">
         <div className="text-center">
@@ -114,6 +86,10 @@ export default function CollectionPage({ params }: CollectionPageProps) {
         </div>
       </div>
     );
+  }
+
+  if (!collection) {
+    return <div className="text-center py-16">Collection not found.</div>;
   }
 
   return (
@@ -136,25 +112,27 @@ export default function CollectionPage({ params }: CollectionPageProps) {
               <p className="text-gray-600 dark:text-gray-300 mb-4 max-w-3xl">{collection.description}</p>
               <div className="flex items-center space-x-6 text-sm text-gray-500 dark:text-gray-400">
                 <span>{collection.photoCount} photos</span>
-                {collection.location && <span>{collection.location}</span>}
-                <span>{formatDate(collection.date)}</span>
+                {/* collection.location and collection.date are not available in the new structure */}
+                {/* <span>{collection.location}</span> */}
+                {/* <span>{formatDate(collection.date)}</span> */}
               </div>
             </div>
             <div className="hidden md:block">
               <div className="flex flex-wrap gap-2">
-                {collection.tags.slice(0, 5).map((tag: string, index: number) => (
-                  <span
-                    key={index}
-                    className="inline-block px-3 py-1 bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 text-sm rounded-full"
-                  >
-                    {tag}
-                  </span>
-                ))}
-                {collection.tags.length > 5 && (
-                  <span className="inline-block px-3 py-1 bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 text-sm rounded-full">
-                    +{collection.tags.length - 5}
-                  </span>
-                )}
+                {/* collection.tags are not available in the new structure */}
+                {/* {collection.tags.slice(0, 5).map((tag: string, index: number) => ( */}
+                {/*   <span */}
+                {/*     key={index} */}
+                {/*     className="inline-block px-3 py-1 bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 text-sm rounded-full" */}
+                {/*   > */}
+                {/*     {tag} */}
+                {/*   </span> */}
+                {/* ))} */}
+                {/* {collection.tags.length > 5 && ( */}
+                {/*   <span className="inline-block px-3 py-1 bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 text-sm rounded-full"> */}
+                {/*     +{collection.tags.length - 5} */}
+                {/*   </span> */}
+                {/* )} */}
               </div>
             </div>
           </div>
@@ -231,14 +209,15 @@ export default function CollectionPage({ params }: CollectionPageProps) {
             <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">About This Collection</h3>
             <p className="text-gray-600 dark:text-gray-300 mb-6">{collection.description}</p>
             <div className="flex flex-wrap justify-center gap-2 mb-6">
-              {collection.tags.map((tag: string, index: number) => (
-                <span
-                  key={index}
-                  className="inline-block px-3 py-1 bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 text-sm rounded-full"
-                >
-                  {tag}
-                </span>
-              ))}
+              {/* collection.tags are not available in the new structure */}
+              {/* {collection.tags.map((tag: string, index: number) => ( */}
+              {/*   <span */}
+              {/*     key={index} */}
+              {/*     className="inline-block px-3 py-1 bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 text-sm rounded-full" */}
+              {/*   > */}
+              {/*     {tag} */}
+              {/*   </span> */}
+              {/* ))} */}
             </div>
             <Link 
               href="/booking"
