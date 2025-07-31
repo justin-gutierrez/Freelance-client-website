@@ -3,12 +3,18 @@ import Link from 'next/link';
 
 export interface Collection {
   id: string;
-  title: string;
+  name: string;
   description: string;
-  photoCount: number;
   slug: string;
   isVisible: boolean;
   tags?: string[];
+  coverImageUrl?: string;
+  images?: Array<{
+    id: string;
+    title: string;
+    url: string;
+    alt: string;
+  }>;
 }
 
 interface CollectionCardProps {
@@ -18,18 +24,7 @@ interface CollectionCardProps {
 }
 
 const CollectionCard: React.FC<CollectionCardProps> = ({ collection, onPreview, onViewAll }) => {
-  // Get the first photo filename for the collection
-  const getFirstPhotoFilename = (collectionId: string): string | null => {
-    switch (collectionId) {
-      case 'justinsgradpics':
-        return '1.NP3Grad-67.jpg';
-      case 'amayasgradpics':
-        return 'CYNR5054.jpg';
-      default:
-        return null; // Use placeholder for other collections
-    }
-  };
-  const firstPhoto = getFirstPhotoFilename(collection.id);
+  const photoCount = collection.images?.length || 0;
 
   return (
     <div className="group break-inside-avoid">
@@ -38,12 +33,12 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ collection, onPreview, 
         <button
           onClick={() => onPreview(collection)}
           className="w-full aspect-[3/4] bg-white dark:bg-black flex items-center justify-center hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 relative overflow-hidden"
-          aria-label={`Preview ${collection.title} collection`}
+          aria-label={`Preview ${collection.name} collection`}
         >
-          {firstPhoto ? (
+          {collection.coverImageUrl ? (
             <img
-              src={`/images/${collection.id}/${firstPhoto}`}
-              alt={collection.title}
+              src={collection.coverImageUrl}
+              alt={collection.name}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               onError={(e) => {
                 // Fallback to placeholder if image fails to load
@@ -54,7 +49,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ collection, onPreview, 
                   parent.innerHTML = `
                     <div class='text-black dark:text-white text-center'>
                       <div class='text-4xl mb-2'>📸</div>
-                      <p class='text-xs font-medium'>${collection.photoCount} photos</p>
+                      <p class='text-xs font-medium'>${photoCount} photos</p>
                     </div>
                   `;
                 }
@@ -63,14 +58,14 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ collection, onPreview, 
           ) : (
             <div className="text-black dark:text-white text-center">
               <div className="text-4xl mb-2">📸</div>
-              <p className="text-xs font-medium">{collection.photoCount} photos</p>
+              <p className="text-xs font-medium">{photoCount} photos</p>
             </div>
           )}
         </button>
         {/* Only show the title below the image, small text */}
         <div className="p-3 text-center">
           <h3 className="text-xs font-semibold dark:text-white truncate">
-            {collection.title}
+            {collection.name}
           </h3>
           {collection.tags && collection.tags.length > 0 && (
             <div className="flex flex-wrap justify-center gap-1 mt-2">
@@ -98,7 +93,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ collection, onPreview, 
             Preview
           </button>
           <Link
-            href={`/collection/${collection.id}`}
+            href={`/collection/${collection.slug}`}
             className="bg-transparent border border-white dark:border-neutral-800 dark:text-white px-3 py-1 rounded text-xs font-medium hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors"
           >
             View All

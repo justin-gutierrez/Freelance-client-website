@@ -7,20 +7,18 @@ const db = getFirestore(app); // Assumes firebase.initializeApp has already been
 
 export interface Collection {
   id: string;
-  title: string;
+  name: string;
   description: string;
-  photoCount: number;
   slug: string;
   isVisible: boolean;
-  // Add other fields as needed
-}
-
-export interface CollectionImage {
-  id: string;
-  title: string;
-  description: string;
-  imageUrl: string;
-  thumbnailUrl: string;
+  tags?: string[];
+  coverImageUrl?: string;
+  images?: Array<{
+    id: string;
+    title: string;
+    url: string;
+    alt: string;
+  }>;
 }
 
 export interface NewCollectionInput {
@@ -40,7 +38,7 @@ export async function getVisibleCollections(): Promise<Collection[]> {
 }
 
 // Fetch a specific collection and its images by slug
-export async function getCollectionBySlug(slug: string): Promise<{ collection: Collection | null; images: CollectionImage[] }> {
+export async function getCollectionBySlug(slug: string): Promise<{ collection: Collection | null; images: any[] }> {
   // Find the collection by slug
   const q = query(collection(db, 'collections'), where('slug', '==', slug));
   const querySnapshot = await getDocs(q);
@@ -50,10 +48,8 @@ export async function getCollectionBySlug(slug: string): Promise<{ collection: C
   const collectionDoc = querySnapshot.docs[0];
   const collectionData = { id: collectionDoc.id, ...collectionDoc.data() } as Collection;
 
-  // Fetch images subcollection
-  const imagesCol = collection(db, 'collections', collectionDoc.id, 'images');
-  const imagesSnapshot = await getDocs(imagesCol);
-  const images = imagesSnapshot.docs.map((imgDoc: QueryDocumentSnapshot) => ({ id: imgDoc.id, ...imgDoc.data() } as CollectionImage));
+  // Images are stored directly in the collection document
+  const images = collectionData.images || [];
 
   return { collection: collectionData, images };
 }

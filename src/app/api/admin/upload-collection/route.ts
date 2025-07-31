@@ -1,82 +1,73 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, storage } from '@/lib/firebase-admin';
 import { v4 as uuidv4 } from 'uuid';
-import formidable from 'formidable';
-import { Readable } from 'stream';
-import { getServerSession } from 'next-auth/next';
-import authOptions from '@/pages/api/auth/[...nextauth]';
 import { requireAdminSession } from '@/lib/require-admin-session';
 
 export const runtime = 'nodejs';
-export const config = { api: { bodyParser: false } };
 
-async function parseForm(req: NextRequest) {
-  return new Promise<{ fields: any; files: any }>((resolve, reject) => {
-    const form = new formidable.IncomingForm({ multiples: true });
-    form.parse(req as any, (err, fields, files) => {
-      if (err) reject(err);
-      else resolve({ fields, files });
-    });
-  });
-}
-
-async function uploadToStorage(file: any, slug: string) {
+async function uploadToStorage(buffer: Buffer, filename: string, contentType: string) {
   const bucket = storage.bucket();
-  const filename = `collections/${slug}/${file.originalFilename}`;
   const fileRef = bucket.file(filename);
-  const buffer = await fileToBuffer(file);
-  await fileRef.save(buffer, { contentType: file.mimetype });
+  await fileRef.save(buffer, { contentType });
   await fileRef.makePublic();
   const url = fileRef.publicUrl();
   return { url, filename };
-}
-
-function fileToBuffer(file: any): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    const stream = Readable.from(file.filepath ? require('fs').createReadStream(file.filepath) : file._writeStream);
-    stream.on('data', (chunk) => chunks.push(chunk));
-    stream.on('end', () => resolve(Buffer.concat(chunks)));
-    stream.on('error', reject);
-  });
 }
 
 export async function POST(req: NextRequest) {
   const session = await requireAdminSession(req);
   if (session instanceof Response) return session;
 
-  // Parse form data
-  const { fields, files } = await parseForm(req);
-  const { name, slug, tags, description, coverIndex, isVisible } = fields;
-  const tagsArr = tags ? tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [];
-  const fileList = Array.isArray(files.images) ? files.images : [files.images];
+  try {
+    const formData = await req.formData();
+    
+    // Extract form fields
+    const name = formData.get('name') as string;
+    const slug = formData.get('slug') as string;
+    const tags = formData.get('tags') as string;
+    const description = formData.get('description') as string;
+    const coverIndex = formData.get('coverIndex') as string;
+    const isVisible = formData.get('isVisible') as string;
+    
+    const tagsArr = tags ? tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [];
+    
+    // Extract files
+    const images = formData.getAll('images') as File[];
+    
+    // Upload images
+    const imageUploadResults = await Promise.all(
+      images.map(async (file: File, idx: number) => {
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const filename = `collections/${slug}/${file.name}`;
+        const { url } = await uploadToStorage(buffer, filename, file.type);
+        
+        return {
+          id: uuidv4(),
+          title: file.name,
+          url,
+          alt: `${name} image ${idx + 1}`,
+          filename,
+        };
+      })
+    );
+    
+    const coverImageUrl = imageUploadResults[Number(coverIndex)]?.url || imageUploadResults[0]?.url;
 
-  // Upload images
-  const imageUploadResults = await Promise.all(
-    fileList.map(async (file: any, idx: number) => {
-      const { url, filename } = await uploadToStorage(file, slug);
-      return {
-        id: uuidv4(),
-        title: file.originalFilename,
-        url,
-        alt: `${name} image ${idx + 1}`,
-        filename,
-      };
-    })
-  );
-  const coverImageUrl = imageUploadResults[Number(coverIndex)]?.url || imageUploadResults[0]?.url;
+    // Save Firestore document
+    const docRef = await db.collection('collections').add({
+      name,
+      slug,
+      description,
+      tags: tagsArr,
+      coverImageUrl,
+      isVisible: isVisible === 'true' || isVisible === true,
+      images: imageUploadResults,
+      createdAt: new Date().toISOString(),
+    });
 
-  // Save Firestore document
-  const docRef = await db.collection('collections').add({
-    name,
-    slug,
-    description,
-    tags: tagsArr,
-    coverImageUrl,
-    isVisible: isVisible === 'true' || isVisible === true,
-    images: imageUploadResults,
-    createdAt: new Date().toISOString(),
-  });
-
-  return NextResponse.json({ success: true, id: docRef.id });
+    return NextResponse.json({ success: true, id: docRef.id });
+  } catch (error) {
+    console.error('Upload error:', error);
+    return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+  }
 } 

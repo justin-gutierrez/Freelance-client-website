@@ -6,7 +6,8 @@ import Lightbox from '@/components/Lightbox';
 import Fuse from 'fuse.js';
 import { useSearchStore } from '@/lib/useSearchStore';
 import CollectionGrid from '@/components/CollectionGrid';
-import { getVisibleCollections, getCollectionBySlug, Collection, CollectionImage } from '@/lib/firestore';
+import { getVisibleCollections, getCollectionBySlug } from '@/lib/firestore';
+import { Collection } from '@/components/CollectionCard';
 
 export default function HomePage() {
   const search = useSearchStore((state) => state.search);
@@ -18,7 +19,7 @@ export default function HomePage() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentCollection, setCurrentCollection] = useState<Collection | null>(null);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
-  const [lightboxImages, setLightboxImages] = useState<CollectionImage[]>([]);
+  const [lightboxImages, setLightboxImages] = useState<any[]>([]);
 
   // Fetch collections from Firestore
   useEffect(() => {
@@ -37,7 +38,7 @@ export default function HomePage() {
 
   // Fuzzy search setup
   const fuse = useMemo(() => new Fuse(collections, {
-    keys: ['title', 'description', 'tags', 'category', 'location'],
+    keys: ['name', 'description', 'tags'],
     threshold: 0.35,
     ignoreLocation: true,
     minMatchCharLength: 2,
@@ -105,13 +106,16 @@ export default function HomePage() {
   }
 
   const openLightbox = async (collection: Collection) => {
+    console.log('Opening lightbox for collection:', collection);
     setCurrentCollection(collection);
     setCurrentPhotoIndex(0);
     try {
       const { images } = await getCollectionBySlug(collection.slug);
+      console.log('Fetched images for lightbox:', images);
       setLightboxImages(images);
       setLightboxOpen(true);
-    } catch {
+    } catch (error) {
+      console.error('Error opening lightbox:', error);
       setLightboxImages([]);
       setLightboxOpen(false);
       setError('Failed to load images for this collection.');

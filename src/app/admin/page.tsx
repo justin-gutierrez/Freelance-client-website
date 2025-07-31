@@ -55,6 +55,7 @@ export default function AdminPage() {
   const [collectionsLoading, setCollectionsLoading] = useState(false);
   const [collectionsError, setCollectionsError] = useState<string | null>(null);
   const [deletingCollectionId, setDeletingCollectionId] = useState<string | null>(null);
+  const [collectionAddedSuccess, setCollectionAddedSuccess] = useState(false);
 
   // Login form state
   const [loginUsername, setLoginUsername] = useState('');
@@ -134,6 +135,7 @@ export default function AdminPage() {
       return;
     }
     setLoading(true);
+    setCollectionAddedSuccess(false);
     const formData = new FormData();
     formData.append('name', data.name);
     formData.append('slug', data.name.replace(/\s+/g, '-').toLowerCase());
@@ -152,8 +154,10 @@ export default function AdminPage() {
       });
       const result = await res.json();
       if (result.success) {
-        alert('Collection added successfully!');
+        setCollectionAddedSuccess(true);
         resetCollection();
+        // Reset success state after 3 seconds
+        setTimeout(() => setCollectionAddedSuccess(false), 3000);
       } else {
         alert('Failed to add collection.');
       }
@@ -690,10 +694,19 @@ export default function AdminPage() {
                 </div>
                 <button
                   type="submit"
-                  className="w-full bg-black dark:bg-white text-white dark:text-black px-6 py-3 rounded-lg font-medium hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors disabled:opacity-50"
+                  className={`w-full px-6 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 ${
+                    collectionAddedSuccess
+                      ? 'bg-green-600 text-white'
+                      : 'bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200'
+                  }`}
                   disabled={loading}
                 >
-                  {loading ? 'Adding Collection...' : 'Add Collection'}
+                  {collectionAddedSuccess 
+                    ? 'Added Successfully!' 
+                    : loading 
+                      ? 'Adding Collection...' 
+                      : 'Add Collection'
+                  }
                 </button>
               </form>
             </div>

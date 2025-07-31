@@ -1,25 +1,25 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
 import { formatDate } from '@/lib/utils';
 import Lightbox from '@/components/Lightbox';
+import { getCollectionBySlug } from '@/lib/firestore';
 
 interface Collection {
   id: string;
-  title: string;
+  name: string;
   description: string;
-  photoCount: number;
-  // Add other fields as needed
-}
-
-interface Photo {
-  id: string;
-  title: string;
-  description: string;
-  imageUrl: string;
-  thumbnailUrl: string;
+  slug: string;
+  isVisible: boolean;
+  tags?: string[];
+  coverImageUrl?: string;
+  images?: Array<{
+    id: string;
+    title: string;
+    url: string;
+    alt: string;
+  }>;
 }
 
 interface CollectionPageProps {
@@ -32,20 +32,34 @@ export default function CollectionPage({ params }: CollectionPageProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [collection, setCollection] = useState<Collection | null>(null);
-  const [photos, setPhotos] = useState<Photo[]>([]);
-  const [imageOrientations, setImageOrientations] = useState<{[key: string]: 'portrait' | 'landscape'}>({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [imageOrientations, setImageOrientations] = useState<{[key: string]: 'portrait' | 'landscape'}>({});
 
   // Load collection data
-  React.useEffect(() => {
-    // TODO: Fetch collection and photos from Firebase using params.id
-    // Example:
-    // fetchCollectionFromFirebase(params.id).then(data => {
-    //   setCollection(data.collection);
-    //   setPhotos(data.photos);
-    //   setLoading(false);
-    // });
-    setLoading(false); // Remove this when real fetch is implemented
+  useEffect(() => {
+    const loadCollection = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const resolvedParams = await params;
+        console.log('Loading collection with slug:', resolvedParams.id);
+        const { collection: collectionData, images } = await getCollectionBySlug(resolvedParams.id);
+        console.log('Fetched collection data:', collectionData);
+        console.log('Fetched images:', images);
+        setCollection({
+          ...collectionData,
+          images
+        });
+      } catch (err) {
+        console.error('Error loading collection:', err);
+        setError('Collection not found or failed to load.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCollection();
   }, [params]);
 
   const handleImageLoad = (photoId: string, e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -88,9 +102,23 @@ export default function CollectionPage({ params }: CollectionPageProps) {
     );
   }
 
-  if (!collection) {
-    return <div className="text-center py-16">Collection not found.</div>;
+  if (error || !collection) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-zinc-900 pt-16 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 dark:text-red-400 text-lg font-semibold mb-4">{error || 'Collection not found.'}</p>
+          <Link 
+            href="/"
+            className="inline-block bg-black dark:bg-white text-white dark:text-black px-6 py-3 rounded-lg font-medium hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+          >
+            Back to Collections
+          </Link>
+        </div>
+      </div>
+    );
   }
+
+  const photos = collection.images || [];
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-zinc-900 pt-16">
@@ -108,31 +136,27 @@ export default function CollectionPage({ params }: CollectionPageProps) {
                 </svg>
                 Back to Collections
               </Link>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">{collection.title}</h1>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">{collection.name}</h1>
               <p className="text-gray-600 dark:text-gray-300 mb-4 max-w-3xl">{collection.description}</p>
               <div className="flex items-center space-x-6 text-sm text-gray-500 dark:text-gray-400">
-                <span>{collection.photoCount} photos</span>
-                {/* collection.location and collection.date are not available in the new structure */}
-                {/* <span>{collection.location}</span> */}
-                {/* <span>{formatDate(collection.date)}</span> */}
+                <span>{photos.length} photos</span>
               </div>
             </div>
             <div className="hidden md:block">
               <div className="flex flex-wrap gap-2">
-                {/* collection.tags are not available in the new structure */}
-                {/* {collection.tags.slice(0, 5).map((tag: string, index: number) => ( */}
-                {/*   <span */}
-                {/*     key={index} */}
-                {/*     className="inline-block px-3 py-1 bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 text-sm rounded-full" */}
-                {/*   > */}
-                {/*     {tag} */}
-                {/*   </span> */}
-                {/* ))} */}
-                {/* {collection.tags.length > 5 && ( */}
-                {/*   <span className="inline-block px-3 py-1 bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 text-sm rounded-full"> */}
-                {/*     +{collection.tags.length - 5} */}
-                {/*   </span> */}
-                {/* )} */}
+                {collection.tags && collection.tags.slice(0, 5).map((tag: string, index: number) => (
+                  <span
+                    key={index}
+                    className="inline-block px-3 py-1 bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 text-sm rounded-full"
+                  >
+                    {tag}
+                  </span>
+                ))}
+                {collection.tags && collection.tags.length > 5 && (
+                  <span className="inline-block px-3 py-1 bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 text-sm rounded-full">
+                    +{collection.tags.length - 5}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -161,12 +185,12 @@ export default function CollectionPage({ params }: CollectionPageProps) {
                     </div>
                   </div>
                   <img
-                    src={photo.imageUrl}
-                    alt={photo.title}
+                    src={photo.url}
+                    alt={photo.alt || photo.title}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 relative z-10"
                     onLoad={(e) => handleImageLoad(photo.id, e)}
                     onError={(e) => {
-                      console.error(`❌ Image failed to load: ${photo.imageUrl}`);
+                      console.error(`❌ Image failed to load: ${photo.url}`);
                       // Fallback to placeholder if image fails to load
                       const target = e.target as HTMLImageElement;
                       target.style.display = 'none';
@@ -177,7 +201,7 @@ export default function CollectionPage({ params }: CollectionPageProps) {
                             <div class="text-4xl mb-2">📸</div>
                             <p class="text-sm">${photo.title}</p>
                             <p class="text-xs text-red-500 mt-2">Failed to load</p>
-                            <p class="text-xs text-gray-400">${photo.imageUrl}</p>
+                            <p class="text-xs text-gray-400">${photo.url}</p>
                           </div>
                         `;
                       }
@@ -189,7 +213,6 @@ export default function CollectionPage({ params }: CollectionPageProps) {
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center">
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-center">
                     <h3 className="text-white font-semibold text-lg mb-2">{photo.title}</h3>
-                    <p className="text-white/80 text-sm mb-4">{photo.description}</p>
                     <button 
                       onClick={() => openLightbox(index)}
                       className="bg-white dark:bg-zinc-900 text-black dark:text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
@@ -209,15 +232,14 @@ export default function CollectionPage({ params }: CollectionPageProps) {
             <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">About This Collection</h3>
             <p className="text-gray-600 dark:text-gray-300 mb-6">{collection.description}</p>
             <div className="flex flex-wrap justify-center gap-2 mb-6">
-              {/* collection.tags are not available in the new structure */}
-              {/* {collection.tags.map((tag: string, index: number) => ( */}
-              {/*   <span */}
-              {/*     key={index} */}
-              {/*     className="inline-block px-3 py-1 bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 text-sm rounded-full" */}
-              {/*   > */}
-              {/*     {tag} */}
-              {/*   </span> */}
-              {/* ))} */}
+              {collection.tags && collection.tags.map((tag: string, index: number) => (
+                <span
+                  key={index}
+                  className="inline-block px-3 py-1 bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 text-sm rounded-full"
+                >
+                  {tag}
+                </span>
+              ))}
             </div>
             <Link 
               href="/booking"

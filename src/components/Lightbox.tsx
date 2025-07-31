@@ -6,9 +6,8 @@ import { createPortal } from 'react-dom';
 interface Photo {
   id: string;
   title: string;
-  description: string;
-  imageUrl: string;
-  thumbnailUrl: string;
+  url: string;
+  alt?: string;
 }
 
 interface LightboxProps {
@@ -119,8 +118,8 @@ export default function Lightbox({ isOpen, onClose, photos, currentIndex, onNavi
         <div className="flex items-center justify-center relative overflow-auto">
           <div className="relative flex items-center justify-center p-4">
             <img
-              src={currentPhoto.imageUrl}
-              alt={currentPhoto.title}
+              src={currentPhoto.url}
+              alt={currentPhoto.alt || currentPhoto.title}
               className="object-contain rounded-lg"
               style={{ 
                 maxWidth: '90%', 
@@ -154,9 +153,6 @@ export default function Lightbox({ isOpen, onClose, photos, currentIndex, onNavi
           <h2 id="lightbox-title" className="text-xl font-semibold mb-2">
             {currentPhoto.title}
           </h2>
-          <p id="lightbox-description" className="text-sm text-gray-200 dark:text-gray-300 mb-3">
-            {currentPhoto.description}
-          </p>
           <div className="flex items-center justify-between text-sm text-gray-300 dark:text-gray-400">
             <span>Photo {currentIndex + 1} of {photos.length}</span>
             <div className="flex space-x-2">

@@ -1,24 +1,30 @@
-import * as admin from 'firebase-admin';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 
-const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+// Validate environment variables
+const projectId = process.env.FIREBASE_PROJECT_ID;
+const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
+const privateKeyRaw = process.env.GOOGLE_PRIVATE_KEY;
+const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
 
-console.log('[FIREBASE ADMIN ENV]', {
-  FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
-  GOOGLE_CLIENT_EMAIL: process.env.GOOGLE_CLIENT_EMAIL,
-  GOOGLE_PRIVATE_KEY: privateKey ? privateKey.substring(0, 20) + '...' : undefined,
-  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-});
+if (!projectId || !clientEmail || !privateKeyRaw || !storageBucket) {
+  throw new Error('Missing required Firebase environment variables');
+}
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.GOOGLE_CLIENT_EMAIL,
-      privateKey
+// Parse the private key
+const privateKey = privateKeyRaw.replace(/\\n/g, '\n');
+
+if (!getApps().length) {
+  initializeApp({
+    credential: cert({
+      projectId,
+      clientEmail,
+      privateKey,
     }),
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    storageBucket,
   });
 }
 
-export const db = admin.firestore();
-export const storage = admin.storage(); 
+export const db = getFirestore();
+export const storage = getStorage(); 

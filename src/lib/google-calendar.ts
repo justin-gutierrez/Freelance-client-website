@@ -11,14 +11,12 @@ interface CalendarEvent {
   zoomPassword?: string;
 }
 
-export function getGoogleCalendarClient() {
-  const auth = new google.auth.JWT(
-    process.env.GOOGLE_CALENDAR_CLIENT_EMAIL,
-    undefined,
-    process.env.GOOGLE_CALENDAR_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    ['https://www.googleapis.com/auth/calendar']
-  );
-  return google.calendar({ version: 'v3', auth });
+export function getGoogleCalendarAuth() {
+  return new google.auth.JWT({
+    email: process.env.GOOGLE_CALENDAR_CLIENT_EMAIL,
+    key: process.env.GOOGLE_CALENDAR_PRIVATE_KEY?.replace(/\n/g, '\n'),
+    scopes: ['https://www.googleapis.com/auth/calendar'],
+  });
 }
 
 /**
@@ -28,8 +26,8 @@ export function getGoogleCalendarClient() {
  */
 export async function createCalendarEvent(event: CalendarEvent) {
   try {
-    const auth = getGoogleCalendarClient();
-    const calendar = google.calendar({ version: 'v3', auth });
+    const auth = getGoogleCalendarAuth();
+    const calendar = google.calendar('v3');
 
     // Ensure we're using the photographer's calendar
     const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
@@ -78,6 +76,7 @@ export async function createCalendarEvent(event: CalendarEvent) {
       calendarId,
       requestBody: eventResource,
       conferenceDataVersion: zoomJoinUrl ? 1 : 0,
+      auth,
     });
 
     return {
