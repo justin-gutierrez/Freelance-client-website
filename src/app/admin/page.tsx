@@ -136,6 +136,14 @@ export default function AdminPage() {
     }
     setLoading(true);
     setCollectionAddedSuccess(false);
+    
+    // Compress and convert images to WebP before upload
+    const optimizedImages = await Promise.all(
+      Array.from(data.images).map(async (file) => {
+        return await optimizeImage(file, 0.85, 1920); // 85% quality, max 1920px width/height
+      })
+    );
+    
     const formData = new FormData();
     formData.append('name', data.name);
     formData.append('slug', data.name.replace(/\s+/g, '-').toLowerCase());
@@ -143,9 +151,9 @@ export default function AdminPage() {
     formData.append('tags', data.tags);
     formData.append('coverIndex', String(data.coverIndex));
     formData.append('isVisible', 'true');
-    // Add all images
-    Array.from(data.images).forEach((file, idx) => {
-      formData.append('images', file, file.name);
+    // Add all optimized images
+    optimizedImages.forEach((file, idx) => {
+      formData.append('images', file, file.name.replace(/\.[^/.]+$/, '.webp'));
     });
     try {
       const res = await fetch('/api/admin/upload-collection', {
@@ -166,6 +174,71 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Image optimization function (WebP conversion + compression)
+  const optimizeImage = (file: File, quality: number, maxSize: number): Promise<File> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d')!;
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calculate new dimensions while maintaining aspect ratio
+        let { width, height } = img;
+        if (width > height) {
+          if (width > maxSize) {
+            height = (height * maxSize) / width;
+            width = maxSize;
+          }
+        } else {
+          if (height > maxSize) {
+            width = (width * maxSize) / height;
+            height = maxSize;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw and convert to WebP
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Try WebP first, fallback to JPEG if not supported
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const optimizedFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.webp'), {
+                type: 'image/webp',
+                lastModified: Date.now(),
+              });
+              resolve(optimizedFile);
+            } else {
+              // Fallback to JPEG if WebP is not supported
+              canvas.toBlob(
+                (jpegBlob) => {
+                  if (jpegBlob) {
+                    const jpegFile = new File([jpegBlob], file.name.replace(/\.[^/.]+$/, '.jpg'), {
+                      type: 'image/jpeg',
+                      lastModified: Date.now(),
+                    });
+                    resolve(jpegFile);
+                  } else {
+                    resolve(file); // Fallback to original if all else fails
+                  }
+                },
+                'image/jpeg',
+                quality
+              );
+            }
+          },
+          'image/webp',
+          quality
+        );
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
   };
 
   // Delete handler (calls secure API route)

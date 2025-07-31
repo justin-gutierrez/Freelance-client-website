@@ -120,6 +120,7 @@ export default function Lightbox({ isOpen, onClose, photos, currentIndex, onNavi
             <img
               src={currentPhoto.url}
               alt={currentPhoto.alt || currentPhoto.title}
+              loading="lazy"
               className="object-contain rounded-lg"
               style={{ 
                 maxWidth: '90%', 

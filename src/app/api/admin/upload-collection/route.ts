@@ -8,7 +8,11 @@ export const runtime = 'nodejs';
 async function uploadToStorage(buffer: Buffer, filename: string, contentType: string) {
   const bucket = storage.bucket();
   const fileRef = bucket.file(filename);
-  await fileRef.save(buffer, { contentType });
+  
+  // Set proper content type for WebP files
+  const finalContentType = filename.endsWith('.webp') ? 'image/webp' : contentType;
+  
+  await fileRef.save(buffer, { contentType: finalContentType });
   await fileRef.makePublic();
   const url = fileRef.publicUrl();
   return { url, filename };

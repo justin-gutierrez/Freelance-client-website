@@ -39,6 +39,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ collection, onPreview, 
             <img
               src={collection.coverImageUrl}
               alt={collection.name}
+              loading="lazy"
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               onError={(e) => {
                 // Fallback to placeholder if image fails to load

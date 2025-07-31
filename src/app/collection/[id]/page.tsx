@@ -187,6 +187,7 @@ export default function CollectionPage({ params }: CollectionPageProps) {
                   <img
                     src={photo.url}
                     alt={photo.alt || photo.title}
+                    loading="lazy"
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 relative z-10"
                     onLoad={(e) => handleImageLoad(photo.id, e)}
                     onError={(e) => {
