@@ -148,28 +148,6 @@ export default function Lightbox({ isOpen, onClose, photos, currentIndex, onNavi
             />
           </div>
         </div>
-
-        {/* Photo Info */}
-        <div className="bg-white dark:bg-zinc-900 bg-opacity-10 dark:bg-opacity-20 backdrop-blur-sm rounded-lg p-4 mt-4 text-white dark:text-gray-100">
-          <h2 id="lightbox-title" className="text-xl font-semibold mb-2">
-            {currentPhoto.title}
-          </h2>
-          <div className="flex items-center justify-between text-sm text-gray-300 dark:text-gray-400">
-            <span>Photo {currentIndex + 1} of {photos.length}</span>
-            <div className="flex space-x-2">
-              {photos.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => onNavigate(index)}
-                  className={`w-2 h-2 rounded-full transition-colors ${
-                    index === currentIndex ? 'bg-white dark:bg-gray-100' : 'bg-white bg-opacity-50 dark:bg-gray-400 dark:bg-opacity-50'
-                  }`}
-                  aria-label={`Go to photo ${index + 1}`}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Keyboard Navigation Hint */}
