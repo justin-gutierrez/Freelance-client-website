@@ -1,24 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// In a real app, you'd store this in a database
-// For now, we'll use a simple in-memory store (will reset on server restart)
-let bookings: Array<{
-  id: string;
-  guestName: string;
-  guestEmail: string;
-  startTime: string;
-  endTime: string;
-  message: string;
-  zoomMeetingId: string;
-}> = [];
+import { getFutureBookings } from '@/lib/bookings';
 
 export async function GET(request: NextRequest) {
   try {
-    // Filter for future bookings only
-    const now = new Date();
-    const futureBookings = bookings.filter(booking => 
-      new Date(booking.startTime) > now
-    );
+    const futureBookings = getFutureBookings();
 
     return NextResponse.json({
       success: true,
@@ -32,17 +17,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-// Helper function to add a new booking (called from book-session API)
-export function addBooking(booking: {
-  id: string;
-  guestName: string;
-  guestEmail: string;
-  startTime: string;
-  endTime: string;
-  message: string;
-  zoomMeetingId: string;
-}) {
-  bookings.push(booking);
 } 

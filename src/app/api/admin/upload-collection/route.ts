@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       description,
       tags: tagsArr,
       coverImageUrl,
-      isVisible: isVisible === 'true' || isVisible === true,
+      isVisible: isVisible === 'true',
       images: imageUploadResults,
       createdAt: new Date().toISOString(),
     });

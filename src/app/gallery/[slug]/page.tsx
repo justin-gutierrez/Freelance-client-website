@@ -1,18 +1,23 @@
+'use client';
+
 import React, { useEffect, useState } from 'react';
-import { getCollectionBySlug, Collection as BaseCollection, CollectionImage as BaseCollectionImage } from '@/lib/firestore';
+import { getCollectionBySlug, Collection as BaseCollection } from '@/lib/firestore';
 import { useParams } from 'next/navigation';
 
 // Extend types to include tags and url for compatibility
 interface Collection extends BaseCollection {
   tags?: string[];
 }
-interface CollectionImage extends BaseCollectionImage {
+interface CollectionImage {
+  id: string;
+  title: string;
+  imageUrl: string;
   url?: string;
 }
 
 export default function GalleryCollectionPage() {
   const params = useParams();
-  const slug = typeof params.slug === 'string' ? params.slug : Array.isArray(params.slug) ? params.slug[0] : '';
+  const slug = params?.slug ? (typeof params.slug === 'string' ? params.slug : Array.isArray(params.slug) ? params.slug[0] : '') : '';
   const [collection, setCollection] = useState<Collection | null>(null);
   const [images, setImages] = useState<CollectionImage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,7 +69,7 @@ export default function GalleryCollectionPage() {
   return (
     <div className="min-h-screen bg-white dark:bg-black pt-16">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold mb-2 text-gray-900 dark:text-white">{collection.title}</h1>
+        <h1 className="text-3xl font-bold mb-2 text-gray-900 dark:text-white">{collection.name}</h1>
         <p className="text-gray-600 dark:text-gray-300 mb-4">{collection.description}</p>
         {collection.tags && collection.tags.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-8">

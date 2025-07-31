@@ -142,7 +142,7 @@ export default function BookingPage() {
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">Book a Consultation</h1>
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            Choose how you'd like to connect with me for your photography consultation.
+            Choose how you&apos;d like to connect with me for your photography consultation.
           </p>
         </div>
 
@@ -161,7 +161,7 @@ export default function BookingPage() {
                 <p className="mt-1 text-sm text-green-700 dark:text-green-300">
                   {bookingType === 'scheduled' 
                     ? 'Your consultation has been booked successfully. Check your email for meeting details.'
-                    : 'Your consultation request has been submitted. I\'ll get back to you within 24 hours.'
+                    : 'Your consultation request has been submitted. I&apos;ll get back to you within 24 hours.'
                   }
                 </p>
               </div>
@@ -196,7 +196,7 @@ export default function BookingPage() {
             >
               <h3 className="text-xl font-semibold mb-2">Consultation Request</h3>
               <p className="text-sm opacity-80">
-                Submit a request for any date/time. I'll review and get back to you within 24 hours to coordinate.
+                Submit a request for any date/time. I&apos;ll review and get back to you within 24 hours to coordinate.
               </p>
             </button>
           </div>
@@ -320,7 +320,7 @@ export default function BookingPage() {
             <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-lg p-6">
               <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Consultation Request</h2>
               <p className="text-gray-600 dark:text-gray-300 mb-6">
-                Submit your consultation request and I'll get back to you within 24 hours to coordinate a time that works for both of us.
+                Submit your consultation request and I&apos;ll get back to you within 24 hours to coordinate a time that works for both of us.
               </p>
               
               <form onSubmit={handleSubmitRequest(onSubmitRequest)} className="space-y-6">

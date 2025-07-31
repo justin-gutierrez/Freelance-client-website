@@ -47,8 +47,20 @@ export default function CollectionPage({ params }: CollectionPageProps) {
         const { collection: collectionData, images } = await getCollectionBySlug(resolvedParams.id);
         console.log('Fetched collection data:', collectionData);
         console.log('Fetched images:', images);
+        
+        if (!collectionData) {
+          setError('Collection not found.');
+          return;
+        }
+        
         setCollection({
-          ...collectionData,
+          id: collectionData.id || resolvedParams.id,
+          name: collectionData.name || 'Untitled Collection',
+          description: collectionData.description || '',
+          slug: collectionData.slug || resolvedParams.id,
+          isVisible: collectionData.isVisible ?? true,
+          tags: collectionData.tags || [],
+          coverImageUrl: collectionData.coverImageUrl || '',
           images
         });
       } catch (err) {

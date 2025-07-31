@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getConsultationRequests } from '@/app/api/consultation-request/route';
+import { getConsultationRequests } from '@/lib/consultation-requests';
 
 export async function GET(request: NextRequest) {
   try {

@@ -3,6 +3,7 @@ import { createCollectionWithImages, deleteCollectionAndImages } from '@/lib/fir
 import { uploadImage } from '@/lib/firebase';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
+import fs from 'fs';
 
 export const runtime = 'nodejs';
 

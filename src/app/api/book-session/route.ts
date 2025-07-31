@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createZoomMeeting } from '@/lib/zoom';
 import { createCalendarEvent, sendConfirmationEmails } from '@/lib/google-calendar';
-import { addBooking } from '@/app/api/admin/bookings/route';
+import { addBooking } from '@/lib/bookings';
 
 interface BookingRequest {
   name: string;
