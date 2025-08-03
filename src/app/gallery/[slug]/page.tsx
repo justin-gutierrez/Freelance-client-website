@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { getCollectionBySlug, Collection as BaseCollection } from '@/lib/firestore';
 import { useParams } from 'next/navigation';
+import OptimizedImage from '@/components/OptimizedImage';
 
 // Extend types to include tags and url for compatibility
 interface Collection extends BaseCollection {
@@ -86,12 +87,15 @@ export default function GalleryCollectionPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {images.map((img) => (
             <div key={img.id} className="relative rounded-lg overflow-hidden bg-gray-100 dark:bg-zinc-900">
-              <img
-                src={img.url || img.imageUrl}
-                alt={img.title}
-                className="w-full h-64 object-cover object-center transition-transform duration-300 hover:scale-105"
-                loading="lazy"
-              />
+              <div className="relative w-full h-64">
+                <OptimizedImage
+                  src={img.url || img.imageUrl}
+                  alt={img.title}
+                  fill
+                  className="object-cover object-center transition-transform duration-300 hover:scale-105"
+                  sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw"
+                />
+              </div>
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
                 <h2 className="text-white text-sm font-semibold truncate">{img.title}</h2>
               </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import OptimizedImage from './OptimizedImage';
 
 export interface Collection {
   id: string;
@@ -36,25 +37,12 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ collection, onPreview, 
           aria-label={`Preview ${collection.name} collection`}
         >
           {collection.coverImageUrl ? (
-            <img
+            <OptimizedImage
               src={collection.coverImageUrl}
               alt={collection.name}
-              loading="lazy"
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-              onError={(e) => {
-                // Fallback to placeholder if image fails to load
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-                const parent = target.parentElement;
-                if (parent) {
-                  parent.innerHTML = `
-                    <div class='text-black dark:text-white text-center'>
-                      <div class='text-4xl mb-2'>📸</div>
-                      <p class='text-xs font-medium'>${photoCount} photos</p>
-                    </div>
-                  `;
-                }
-              }}
+              fill
+              className="object-cover transition-transform duration-300 group-hover:scale-105"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
           ) : (
             <div className="text-black dark:text-white text-center">

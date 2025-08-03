@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { getVisibleCollections, deleteCollectionAndImages } from '@/lib/firestore';
 import { useSession, signIn, signOut } from 'next-auth/react';
+import OptimizedImage from '@/components/OptimizedImage';
 
 interface Booking {
   id: string;
@@ -750,11 +751,15 @@ export default function AdminPage() {
                               value={idx}
                               className="mb-1"
                             />
-                            <img
-                              src={URL.createObjectURL(file)}
-                              alt={`Preview ${file.name}`}
-                              className="w-16 h-16 object-cover rounded border border-gray-300 dark:border-zinc-700"
-                            />
+                            <div className="relative w-16 h-16">
+                              <OptimizedImage
+                                src={URL.createObjectURL(file)}
+                                alt={`Preview ${file.name}`}
+                                fill
+                                className="object-cover rounded border border-gray-300 dark:border-zinc-700"
+                                sizes="64px"
+                              />
+                            </div>
                             <span className="text-xs mt-1 text-gray-600 dark:text-gray-300 truncate w-16">{file.name}</span>
                           </label>
                         ))}

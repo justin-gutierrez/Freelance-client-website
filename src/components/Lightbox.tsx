@@ -2,6 +2,7 @@
 
 import React, { useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import OptimizedImage from './OptimizedImage';
 
 interface Photo {
   id: string;
@@ -117,34 +118,14 @@ export default function Lightbox({ isOpen, onClose, photos, currentIndex, onNavi
         {/* Image Container */}
         <div className="flex items-center justify-center relative overflow-auto">
           <div className="relative flex items-center justify-center p-4">
-            <img
+            <OptimizedImage
               src={currentPhoto.url}
               alt={currentPhoto.alt || currentPhoto.title}
-              loading="lazy"
-              className="object-contain rounded-lg"
-              style={{ 
-                maxWidth: '90%', 
-                maxHeight: '85vh', 
-                height: 'auto',
-                width: 'auto'
-              }}
-              onError={(e) => {
-                // Fallback to placeholder if image fails to load
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-                const parent = target.parentElement;
-                if (parent) {
-                  parent.innerHTML = `
-                    <div class="bg-gray-200 dark:bg-zinc-800 rounded-lg flex items-center justify-center">
-                      <div class="text-gray-500 dark:text-gray-300 text-center p-8">
-                        <div class="text-6xl mb-4">📸</div>
-                        <p class="text-lg">${currentPhoto.title}</p>
-                        <p class="text-sm mt-2">Photo ${currentIndex + 1} of ${photos.length}</p>
-                      </div>
-                    </div>
-                  `;
-                }
-              }}
+              width={2000}
+              height={2000}
+              className="object-contain rounded-lg max-w-full max-h-[85vh]"
+              sizes="100vw"
+              quality={90}
             />
           </div>
         </div>

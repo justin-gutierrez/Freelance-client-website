@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { formatDate } from '@/lib/utils';
 import Lightbox from '@/components/Lightbox';
+import OptimizedImage from '@/components/OptimizedImage';
 import { getCollectionBySlug } from '@/lib/firestore';
 
 interface Collection {
@@ -34,7 +35,7 @@ export default function CollectionPage({ params }: CollectionPageProps) {
   const [collection, setCollection] = useState<Collection | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [imageOrientations, setImageOrientations] = useState<{[key: string]: 'portrait' | 'landscape'}>({});
+
 
   // Load collection data
   useEffect(() => {
@@ -63,6 +64,8 @@ export default function CollectionPage({ params }: CollectionPageProps) {
           coverImageUrl: collectionData.coverImageUrl || '',
           images
         });
+        
+
       } catch (err) {
         console.error('Error loading collection:', err);
         setError('Collection not found or failed to load.');
@@ -74,21 +77,7 @@ export default function CollectionPage({ params }: CollectionPageProps) {
     loadCollection();
   }, [params]);
 
-  const handleImageLoad = (photoId: string, e: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = e.target as HTMLImageElement;
-    const orientation = img.naturalWidth > img.naturalHeight ? 'landscape' : 'portrait';
-    setImageOrientations(prev => ({
-      ...prev,
-      [photoId]: orientation
-    }));
-    console.log(`✅ Image loaded successfully: ${img.src} (${orientation})`);
-    
-    // Hide loading indicator
-    const loadingDiv = img.parentElement?.querySelector('div');
-    if (loadingDiv) {
-      loadingDiv.style.display = 'none';
-    }
-  };
+
 
   const openLightbox = (index: number) => {
     setCurrentPhotoIndex(index);
@@ -177,62 +166,20 @@ export default function CollectionPage({ params }: CollectionPageProps) {
 
       {/* Photos Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {photos.map((photo, index) => (
-            <div key={photo.id} className="group break-inside-avoid">
+            <div key={photo.id} className="group">
               <div className="relative overflow-hidden rounded-lg bg-white dark:bg-zinc-800 shadow-sm hover:shadow-lg transition-all duration-300 group-hover:scale-[1.02]">
-                {/* Photo */}
-                <button
-                  onClick={() => openLightbox(index)}
-                  className={`w-full bg-gradient-to-br from-gray-200 dark:from-zinc-700 to-gray-300 dark:to-zinc-800 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-300 relative overflow-hidden`}
-                  style={{
-                    aspectRatio: imageOrientations[photo.id] === 'landscape' ? '4/3' : '3/4'
-                  }}
-                  aria-label={`Open ${photo.title} in lightbox`}
-                >
-                  <div className="absolute inset-0 flex items-center justify-center text-gray-500 dark:text-gray-300">
-                    <div className="text-center">
-                      <div className="text-2xl mb-2">📸</div>
-                      <p className="text-xs">Loading...</p>
-                    </div>
-                  </div>
-                  <img
+                <div onClick={() => openLightbox(index)} className="cursor-pointer">
+                  <OptimizedImage
                     src={photo.url}
                     alt={photo.alt || photo.title}
-                    loading="lazy"
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 relative z-10"
-                    onLoad={(e) => handleImageLoad(photo.id, e)}
-                    onError={(e) => {
-                      console.error(`❌ Image failed to load: ${photo.url}`);
-                      // Fallback to placeholder if image fails to load
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      const parent = target.parentElement;
-                      if (parent) {
-                        parent.innerHTML = `
-                          <div class="text-gray-500 dark:text-gray-300 text-center">
-                            <div class="text-4xl mb-2">📸</div>
-                            <p class="text-sm">${photo.title}</p>
-                            <p class="text-xs text-red-500 mt-2">Failed to load</p>
-                            <p class="text-xs text-gray-400">${photo.url}</p>
-                          </div>
-                        `;
-                      }
-                    }}
+                    width={400}
+                    height={256}
+                    className="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105"
+                    sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 20vw"
+                    priority={index === 0}
                   />
-                </button>
-                
-                {/* Photo Info Overlay */}
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center">
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-center">
-                    <h3 className="text-white font-semibold text-lg mb-2">{photo.title}</h3>
-                    <button 
-                      onClick={() => openLightbox(index)}
-                      className="bg-white dark:bg-zinc-900 text-black dark:text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
-                    >
-                      View Full Size
-                    </button>
-                  </div>
                 </div>
               </div>
             </div>
