@@ -110,6 +110,17 @@ export default function AdminPage() {
     }
   };
 
+  // Refresh all data
+  const refreshAllData = async () => {
+    setLoading(true);
+    await Promise.all([
+      fetchUpcomingBookings(),
+      fetchConsultationRequests(),
+      fetchCollections()
+    ]);
+    setLoading(false);
+  };
+
   // Fetch collections for manage tab
   const fetchCollections = async () => {
     setCollectionsLoading(true);
@@ -415,6 +426,20 @@ export default function AdminPage() {
             <p className="text-xl text-gray-600 dark:text-gray-300">
               Manage bookings and consultation requests
             </p>
+          </div>
+
+          {/* Refresh Button */}
+          <div className="flex justify-center mb-6">
+            <button
+              onClick={refreshAllData}
+              disabled={loading}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span>Refresh All Data</span>
+            </button>
           </div>
 
           {/* Tab Navigation */}

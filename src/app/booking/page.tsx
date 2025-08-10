@@ -27,6 +27,7 @@ export default function BookingPage() {
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingError, setBookingError] = useState<string>('');
+  const [calendarKey, setCalendarKey] = useState(0); // Force calendar refresh
 
   const {
     register,
@@ -85,6 +86,9 @@ export default function BookingPage() {
         reset(); // Reset form
         setSelectedDate(null);
         setSelectedTimeSlot('');
+        
+        // Force calendar to refresh availability
+        setCalendarKey(prev => prev + 1);
       } else {
         setBookingError(result.message || 'Booking failed');
       }
@@ -212,6 +216,7 @@ export default function BookingPage() {
               </p>
               
               <CustomCalendar
+                key={calendarKey} // Force re-render when key changes
                 selectedDate={selectedDate}
                 onDateSelect={handleDateChange}
                 onTimeSelect={handleTimeSlotSelect}

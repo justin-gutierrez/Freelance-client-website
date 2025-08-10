@@ -3,6 +3,29 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
+interface TimeSlot {
+  start: string;
+  end: string;
+  time: string;
+  hour: number;
+}
+
+interface BookedSlot {
+  startTime: string;
+  endTime: string;
+  guestName: string;
+  time: string;
+}
+
+interface AvailableTimesResponse {
+  success: boolean;
+  availableSlots: TimeSlot[];
+  bookedSlots: BookedSlot[];
+  totalSlots: number;
+  availableCount: number;
+  bookedCount: number;
+}
+
 interface CustomCalendarProps {
   selectedDate: Date | null;
   onDateSelect: (date: Date) => void;
@@ -17,55 +40,50 @@ export default function CustomCalendar({
   selectedTimeSlot,
 }: CustomCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [availableSlots, setAvailableSlots] = useState<Array<{ start: string; end: string }>>([]);
+  const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
+  const [bookedSlots, setBookedSlots] = useState<BookedSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
 
-  // Generate available time slots for Wednesdays 9 AM - 5 PM
-  useEffect(() => {
-    const generateWednesdaySlots = () => {
-      setLoadingSlots(true);
+  // Fetch available times for a specific date
+  const fetchAvailableTimes = async (date: Date) => {
+    if (!date || date.getDay() !== 3) return; // Only fetch for Wednesdays
+    
+    setLoadingSlots(true);
+    setAvailabilityError(null);
+    
+    try {
+      const dateString = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+      const response = await fetch(`/api/available-times?date=${dateString}`);
       
-      const slots: Array<{ start: string; end: string }> = [];
-      const today = new Date();
-      
-      // Generate slots for the next 8 weeks (8 Wednesdays)
-      for (let week = 0; week < 8; week++) {
-        const wednesday = new Date(today);
-        wednesday.setDate(today.getDate() + (3 - today.getDay() + 7) % 7 + (week * 7));
-        
-        // Only include Wednesdays that are in the future
-        if (wednesday > today) {
-          // Generate time slots from 9 AM to 5 PM (1-hour slots)
-          for (let hour = 9; hour < 17; hour++) {
-            const slotStart = new Date(wednesday);
-            slotStart.setHours(hour, 0, 0, 0);
-            
-            const slotEnd = new Date(slotStart);
-            slotEnd.setHours(slotStart.getHours() + 1);
-            
-            slots.push({
-              start: slotStart.toISOString(),
-              end: slotEnd.toISOString(),
-            });
-          }
-        }
+      if (!response.ok) {
+        throw new Error('Failed to fetch available times');
       }
       
-      setAvailableSlots(slots);
+      const data: AvailableTimesResponse = await response.json();
+      
+      if (data.success) {
+        setAvailableSlots(data.availableSlots);
+        setBookedSlots(data.bookedSlots);
+      } else {
+        throw new Error(data.message || 'Failed to fetch availability');
+      }
+    } catch (error) {
+      console.error('Error fetching available times:', error);
+      setAvailabilityError('Failed to load availability. Please try again.');
+      setAvailableSlots([]);
+      setBookedSlots([]);
+    } finally {
       setLoadingSlots(false);
-    };
-
-    generateWednesdaySlots();
-  }, []);
-
-  // Get available slots for a specific date
-  const getAvailableSlotsForDate = (date: Date) => {
-    const dateStr = date.toDateString();
-    return availableSlots.filter((slot: { start: string; end: string }) => {
-      const slotDate = new Date(slot.start);
-      return slotDate.toDateString() === dateStr;
-    });
+    }
   };
+
+  // Fetch availability when selected date changes
+  useEffect(() => {
+    if (selectedDate) {
+      fetchAvailableTimes(selectedDate);
+    }
+  }, [selectedDate]);
 
   // Check if date has available slots (only Wednesdays)
   const hasAvailableSlots = (date: Date) => {
@@ -76,16 +94,7 @@ export default function CustomCalendar({
     const today = new Date();
     if (date <= today) return false;
     
-    return getAvailableSlotsForDate(date).length > 0;
-  };
-
-  // Format time for display
-  const formatTime = (isoString: string) => {
-    return new Date(isoString).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
+    return true; // We'll check actual availability when date is selected
   };
 
   // Get calendar days for current month
@@ -120,7 +129,6 @@ export default function CustomCalendar({
         hasSlots,
         isSelected,
         isWednesday,
-        slotCount: getAvailableSlotsForDate(date).length,
       });
     }
     
@@ -142,6 +150,15 @@ export default function CustomCalendar({
       const newMonth = new Date(prev);
       newMonth.setMonth(newMonth.getMonth() + 1);
       return newMonth;
+    });
+  };
+
+  // Format time for display
+  const formatTime = (isoString: string) => {
+    return new Date(isoString).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
     });
   };
 
@@ -244,30 +261,78 @@ export default function CustomCalendar({
             <div className="flex justify-center items-center py-8">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 dark:border-white"></div>
             </div>
+          ) : availabilityError ? (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+              <p className="text-sm text-red-700 dark:text-red-300">{availabilityError}</p>
+              <button
+                onClick={() => fetchAvailableTimes(selectedDate)}
+                className="mt-2 text-sm text-red-600 dark:text-red-400 underline hover:no-underline"
+              >
+                Try again
+              </button>
+            </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-3">
-                {getAvailableSlotsForDate(selectedDate).map((slot: { start: string; end: string }, index: number) => (
-                  <button
-                    key={index}
-                    onClick={() => onTimeSelect(slot.start)}
-                    className={`
-                      p-4 text-sm rounded-lg border transition-all duration-200
-                      ${selectedTimeSlot === slot.start
-                        ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white shadow-lg'
-                        : 'bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-zinc-700 hover:border-black dark:hover:border-white hover:shadow-md'
-                      }
-                    `}
-                  >
-                    {formatTime(slot.start)}
-                  </button>
-                ))}
-              </div>
-              
-              {getAvailableSlotsForDate(selectedDate).length === 0 && (
+              {/* Available Slots */}
+              {availableSlots.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Available Slots ({availableSlots.length})
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {availableSlots.map((slot, index) => (
+                      <button
+                        key={index}
+                        onClick={() => onTimeSelect(slot.start)}
+                        className={`
+                          p-4 text-sm rounded-lg border transition-all duration-200
+                          ${selectedTimeSlot === slot.start
+                            ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white shadow-lg'
+                            : 'bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-zinc-700 hover:border-black dark:hover:border-white hover:shadow-md'
+                          }
+                        `}
+                      >
+                        {slot.time}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Booked Slots */}
+              {bookedSlots.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Booked Slots ({bookedSlots.length})
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {bookedSlots.map((slot, index) => (
+                      <div
+                        key={index}
+                        className="p-4 text-sm rounded-lg border border-gray-300 dark:border-zinc-600 bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                        title={`Booked by ${slot.guestName}`}
+                      >
+                        {slot.time} - Booked
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* No Available Slots */}
+              {availableSlots.length === 0 && bookedSlots.length === 0 && (
                 <p className="text-gray-500 dark:text-gray-400 text-center py-4">
                   No available slots for this date
                 </p>
+              )}
+
+              {/* No Available Slots (All Booked) */}
+              {availableSlots.length === 0 && bookedSlots.length > 0 && (
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                  <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                    All time slots for this date are currently booked. Please select a different date or submit a consultation request.
+                  </p>
+                </div>
               )}
             </>
           )}

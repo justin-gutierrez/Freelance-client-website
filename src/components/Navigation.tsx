@@ -103,6 +103,13 @@ export default function Navigation() {
                 >
                   Admin Dashboard
                 </Link>
+                <Link
+                  href="/test-booking"
+                  className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Test Booking System
+                </Link>
                 <div className="border-t border-gray-100 dark:border-zinc-800 my-1"></div>
                 <a
                   href="mailto:hello@photographer.com"
