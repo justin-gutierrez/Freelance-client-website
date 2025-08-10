@@ -178,7 +178,7 @@ export default function BookingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <button
               onClick={() => setBookingType('scheduled')}
-              className={`p-6 rounded-lg border-2 transition-all ${
+              className={`p-6 rounded-lg border-2 transition-all duration-200 hover:scale-105 ${
                 bookingType === 'scheduled'
                   ? 'border-black dark:border-white bg-black dark:bg-white text-white dark:text-black'
                   : 'border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 hover:border-gray-400 dark:hover:border-zinc-600'
@@ -192,7 +192,7 @@ export default function BookingPage() {
 
             <button
               onClick={() => setBookingType('request')}
-              className={`p-6 rounded-lg border-2 transition-all ${
+              className={`p-6 rounded-lg border-2 transition-all duration-200 hover:scale-105 ${
                 bookingType === 'request'
                   ? 'border-black dark:border-white bg-black dark:bg-white text-white dark:text-black'
                   : 'border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 hover:border-gray-400 dark:hover:border-zinc-600'
