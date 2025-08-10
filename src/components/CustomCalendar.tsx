@@ -8,6 +8,13 @@ interface TimeSlot {
   end: string;
   time: string;
   hour: number;
+  isBooked: boolean;
+  booking?: {
+    startTime: string;
+    endTime: string;
+    guestName: string;
+    time: string;
+  } | null;
 }
 
 interface BookedSlot {
@@ -63,8 +70,66 @@ export default function CustomCalendar({
       const data: AvailableTimesResponse = await response.json();
       
       if (data.success) {
-        setAvailableSlots(data.availableSlots);
-        setBookedSlots(data.bookedSlots);
+
+        
+        // Create a complete list of all time slots for the day (9 AM - 5 PM)
+        const allTimeSlots = [];
+        const startHour = 9; // 9 AM
+        const endHour = 17; // 5 PM
+        
+        for (let hour = startHour; hour < endHour; hour++) {
+          const slotStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, 0, 0, 0);
+          const slotEnd = new Date(slotStart);
+          slotEnd.setHours(slotStart.getHours() + 1);
+          
+          // Check if this slot conflicts with any booked slots
+          const isBooked = data.bookedSlots.some(bookedSlot => {
+            const bookedStart = new Date(bookedSlot.startTime);
+            const bookedEnd = new Date(bookedSlot.endTime);
+            
+            // Check if there's any overlap
+            return slotStart < bookedEnd && slotEnd > bookedStart;
+          });
+          
+          if (isBooked) {
+            // Find the booking details for this slot
+            const booking = data.bookedSlots.find(bookedSlot => {
+              const bookedStart = new Date(bookedSlot.startTime);
+              const bookedEnd = new Date(bookedSlot.endTime);
+              return slotStart < bookedEnd && slotEnd > bookedStart;
+            });
+            
+            allTimeSlots.push({
+              start: slotStart.toISOString(),
+              end: slotEnd.toISOString(),
+              time: slotStart.toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true,
+              }),
+              hour: hour,
+              isBooked: true,
+              booking: booking
+            });
+          } else {
+            allTimeSlots.push({
+              start: slotStart.toISOString(),
+              end: slotEnd.toISOString(),
+              time: slotStart.toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true,
+              }),
+              hour: hour,
+              isBooked: false,
+              booking: null
+            });
+          }
+        }
+        
+        // Store all time slots in a single array
+        setAvailableSlots(allTimeSlots);
+        setBookedSlots([]); // We don't need this anymore since all slots are in availableSlots
       } else {
         throw new Error(data.message || 'Failed to fetch availability');
       }
@@ -85,10 +150,12 @@ export default function CustomCalendar({
     }
   }, [selectedDate]);
 
+
+
   // Check if date has available slots (only Wednesdays)
   const hasAvailableSlots = (date: Date) => {
     // Only Wednesdays (day 3) can have slots
-    if (date.getDay() !== 3) return false;
+    if (date.getUTCDay() !== 3) return false;
     
     // Check if it's in the future
     const today = new Date();
@@ -119,7 +186,7 @@ export default function CustomCalendar({
       const isPast = date < today;
       const hasSlots = hasAvailableSlots(date);
       const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
-      const isWednesday = date.getDay() === 3;
+      const isWednesday = date.getUTCDay() === 3;
       
       days.push({
         date,
@@ -273,16 +340,27 @@ export default function CustomCalendar({
             </div>
           ) : (
             <>
-              {/* Available Slots */}
-              {availableSlots.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                    Available Slots ({availableSlots.length})
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    {availableSlots.map((slot, index) => (
+              {/* All Time Slots */}
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                  Time Slots ({availableSlots.length})
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  {availableSlots.map((slot, index) => (
+                    slot.isBooked ? (
+                      // Booked Slot (Disabled)
                       <button
-                        key={index}
+                        key={`booked-${index}`}
+                        disabled={true}
+                        className="p-4 text-sm rounded-lg border border-gray-300 dark:border-zinc-600 bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 cursor-not-allowed opacity-75"
+                        title={`Booked by ${slot.booking?.guestName || 'Unknown'}`}
+                      >
+                        {slot.time} - Booked
+                      </button>
+                    ) : (
+                      // Available Slot (Clickable)
+                      <button
+                        key={`available-${index}`}
                         onClick={() => onTimeSelect(slot.start)}
                         className={`
                           p-4 text-sm rounded-lg border transition-all duration-200
@@ -294,40 +372,20 @@ export default function CustomCalendar({
                       >
                         {slot.time}
                       </button>
-                    ))}
-                  </div>
+                    )
+                  ))}
                 </div>
-              )}
-
-              {/* Booked Slots */}
-              {bookedSlots.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                    Booked Slots ({bookedSlots.length})
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    {bookedSlots.map((slot, index) => (
-                      <div
-                        key={index}
-                        className="p-4 text-sm rounded-lg border border-gray-300 dark:border-zinc-600 bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-                        title={`Booked by ${slot.guestName}`}
-                      >
-                        {slot.time} - Booked
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              </div>
 
               {/* No Available Slots */}
-              {availableSlots.length === 0 && bookedSlots.length === 0 && (
+              {availableSlots.length === 0 && (
                 <p className="text-gray-500 dark:text-gray-400 text-center py-4">
                   No available slots for this date
                 </p>
               )}
 
-              {/* No Available Slots (All Booked) */}
-              {availableSlots.length === 0 && bookedSlots.length > 0 && (
+              {/* All Slots Booked */}
+              {availableSlots.length > 0 && availableSlots.every(slot => slot.isBooked) && (
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
                   <p className="text-sm text-yellow-700 dark:text-yellow-300">
                     All time slots for this date are currently booked. Please select a different date or submit a consultation request.

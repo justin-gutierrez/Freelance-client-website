@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { addBooking } from '@/lib/bookings';
 import { createZoomMeeting } from '@/lib/zoom';
 import { createCalendarEvent, sendConfirmationEmails } from '@/lib/google-calendar';
-import { addBooking } from '@/lib/bookings';
 
 interface BookingRequest {
   name: string;
   email: string;
-  message: string;
+  message?: string;
   selectedTime: string;
   bookingType: 'scheduled';
 }
@@ -18,24 +18,12 @@ export async function POST(request: NextRequest) {
     const { name, email, message, selectedTime, bookingType } = body;
 
     // Validate required fields
-    if (!name || !email || !selectedTime) {
+    if (!name || !email || !selectedTime || !bookingType) {
       return NextResponse.json(
         {
           success: false,
           error: 'Missing required fields',
-          message: 'Name, email, and selected time are required',
-        },
-        { status: 400 }
-      );
-    }
-
-    // Validate booking type
-    if (bookingType !== 'scheduled') {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Invalid booking type',
-          message: 'This endpoint is for scheduled consultations only',
+          message: 'Name, email, selected time, and booking type are required',
         },
         { status: 400 }
       );
@@ -54,40 +42,58 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate selected time is in the future
+    // Validate booking type
+    if (bookingType !== 'scheduled') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Invalid booking type',
+          message: 'Only scheduled consultations are supported',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Parse and validate the selected time
     const selectedDateTime = new Date(selectedTime);
+    
+    if (isNaN(selectedDateTime.getTime())) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Invalid time format',
+          message: 'Please provide a valid time format',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Ensure the selected time is in the future
     const now = new Date();
     if (selectedDateTime <= now) {
       return NextResponse.json(
         {
           success: false,
           error: 'Invalid time',
-          message: 'Selected time must be in the future',
+          message: 'Booking time must be in the future',
         },
         { status: 400 }
       );
     }
 
     // Validate that the selected time is on a Wednesday
-    if (selectedDateTime.getDay() !== 3) {
+    const dayOfWeek = selectedDateTime.getUTCDay();
+    if (dayOfWeek !== 3) {
       return NextResponse.json(
         {
           success: false,
           error: 'Invalid day',
           message: 'Consultations are only available on Wednesdays',
-        },
-        { status: 400 }
-      );
-    }
-
-    // Validate that the time is between 9 AM and 5 PM
-    const hour = selectedDateTime.getHours();
-    if (hour < 9 || hour >= 17) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Invalid time',
-          message: 'Consultations are only available between 9 AM and 5 PM',
+          received: {
+            selectedTime: selectedTime,
+            dayOfWeek: dayOfWeek,
+            dayName: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayOfWeek]
+          }
         },
         { status: 400 }
       );
@@ -153,51 +159,19 @@ export async function POST(request: NextRequest) {
           startTime: selectedDateTime.toISOString(),
           endTime: endTime.toISOString(),
         },
-        guest: {
-          name,
-          email,
-        },
       },
-      message: 'Booking confirmed successfully! Google Calendar event created and confirmation emails sent. Check your email for meeting details.',
+      message: 'Booking created successfully! Google Calendar event created and confirmation emails sent to both client and photographer.',
     });
 
   } catch (error) {
-    console.error('Error booking session:', error);
-    
-    // Handle specific error types
-    if (error instanceof Error) {
-      if (error.message.includes('ZOOM_API_KEY') || error.message.includes('ZOOM_API_SECRET')) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Zoom configuration error',
-            message: 'Zoom API credentials are not properly configured',
-          },
-          { status: 500 }
-        );
-      }
-      
-      if (error.message.includes('GOOGLE_CALENDAR_ID') || error.message.includes('GOOGLE_CLIENT_EMAIL')) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Google Calendar configuration error',
-            message: 'Google Calendar credentials are not properly configured',
-          },
-          { status: 500 }
-        );
-      }
-    }
-
+    console.error('Error creating booking:', error);
     return NextResponse.json(
       {
         success: false,
-        error: 'Booking failed',
-        message: error instanceof Error ? error.message : 'An unexpected error occurred',
+        error: 'Booking creation failed',
+        message: 'An error occurred while creating your booking. Please try again.',
       },
       { status: 500 }
     );
   }
 }
-
- 

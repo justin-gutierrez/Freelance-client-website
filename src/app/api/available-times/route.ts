@@ -22,6 +22,32 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+    
+    // Debug logging for date validation
+    console.log('Available times API - Date validation:', {
+      dateParam,
+      requestedDate: requestedDate.toISOString(),
+      dayOfWeek: requestedDate.getUTCDay(),
+      dayName: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][requestedDate.getUTCDay()],
+      localDate: requestedDate.toLocaleDateString(),
+      utcDate: requestedDate.toUTCString()
+    });
+    
+    // Ensure the requested date is a Wednesday
+    if (requestedDate.getUTCDay() !== 3) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'Only Wednesdays are available for consultations',
+          received: {
+            date: requestedDate.toISOString(),
+            day: requestedDate.getUTCDay(),
+            dayName: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][requestedDate.getUTCDay()]
+          }
+        },
+        { status: 400 }
+      );
+    }
 
     // Get bookings for the requested date
     const dateBookings = getBookingsForDate(requestedDate);
@@ -35,11 +61,17 @@ export async function GET(request: NextRequest) {
     const endHour = 17; // 5 PM
     
     for (let hour = startHour; hour < endHour; hour++) {
-      const slotStart = new Date(requestedDate);
-      slotStart.setHours(hour, 0, 0, 0);
+      // Create time slot in local timezone to avoid day shifting
+      const slotStart = new Date(requestedDate.getFullYear(), requestedDate.getMonth(), requestedDate.getDate(), hour, 0, 0, 0);
       
       const slotEnd = new Date(slotStart);
       slotEnd.setHours(slotStart.getHours() + 1);
+      
+      // Verify the slot is still on the same day (Wednesday)
+      if (slotStart.getUTCDay() !== 3) {
+        console.warn(`Time slot shifted to wrong day: ${slotStart.toISOString()} (day ${slotStart.getUTCDay()})`);
+        continue; // Skip this slot if it shifted to wrong day
+      }
       
       allTimeSlots.push({
         start: slotStart.toISOString(),
